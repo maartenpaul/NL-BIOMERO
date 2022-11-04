@@ -18,6 +18,8 @@ ENV VIRTUAL_ENV_CP=${VIRTUAL_ENV_CP}
 RUN python3 -m venv $VIRTUAL_ENV_CP
 RUN $VIRTUAL_ENV_CP/bin/python -m pip install --upgrade pip
 RUN $VIRTUAL_ENV_CP/bin/python -m pip install -r requirements.txt
+RUN $VIRTUAL_ENV_CP/bin/python -m pip install mxnet-mkl
+RUN $VIRTUAL_ENV_CP/bin/python -m pip install matplotlib
 RUN $VIRTUAL_ENV_CP/bin/python -m pip install cellpose
 # # Create Python environment for Stardist
 ARG VIRTUAL_ENV_SD
