@@ -1,21 +1,32 @@
 #!/opt/omero/server/cellposeenv/bin/python
 # Example OMERO.script using Cellpose segmentation
 # from a cellpose python environment
+# Modified work Copyright 2022 Torec Luik, Amsterdam UMC
+# Use is subject to license terms supplied in LICENSE.txt
 
 import subprocess
 import omero
 import omero.gateway
 from omero import scripts
 from omero.gateway import BlitzGateway
-from omero.rtypes import rstring, rlong, robject, unwrap
+from omero.rtypes import rstring, rlong, robject, unwrap, rint
 from cellpose import models, io
 import os
 import numpy as np
 
 
+_CHANNEL_VALUES = [rint(0), rint(1), rint(2), rint(3)]
+_DEFAULT_CHANNEL_CYTOPLASM = 0
+_DEFAULT_CHANNEL_NUCLEUS = 0
+_DEFAULT_DATA_TYPE = "Image"
+_DEFAULT_MODEL = "nuclei"
+_MODELS_VALUES = [rstring(_DEFAULT_MODEL)]
+_PARAM_CHANNEL_CYTOPLASM = "Channel_(cytoplasm)"
+_PARAM_CHANNEL_NUCLEUS = "Channel_(nucleus)"
+_PARAM_DATA_TYPE = "Data_Type"
+_PARAM_IDS = "IDs"
+_PARAM_MODEL = "Model"
 RUN_ON_GPU_NS = "GPU"
-CELLPOSE_MODELS = [rstring("nuclei")]
-CELLPOSE_DEFAULT = "nuclei"
 
 
 def random_label_cmap(n=2**16, h=(0, 1), lp=(.4, 1), s=(.2, .8)):
@@ -27,7 +38,8 @@ def random_label_cmap(n=2**16, h=(0, 1), lp=(.4, 1), s=(.2, .8)):
     import colorsys
     # cols = np.random.rand(n,3)
     # cols = np.random.uniform(0.1,1.0,(n,3))
-    h, lp, s = np.random.uniform(*h, n), np.random.uniform(*lp, n), np.random.uniform(*s, n)
+    h, lp, = np.random.uniform(*h, n), np.random.uniform(*lp, n)
+    s = np.random.uniform(*s, n)
     cols = np.stack(
         [colorsys.hls_to_rgb(_h, _l, _s) for _h, _l, _s in zip(h, lp, s)],
         axis=0)
@@ -43,7 +55,8 @@ def saveCPImageToOmero(img, masks, flows, image, name, conn):
 
     # name = name+'_cp_output.png'
 
-    files = [f for f in os.listdir('.') if os.path.isfile(f) and f.endswith('_cp_output.png')]
+    files = [f for f in os.listdir('.') if os.path.isfile(f)
+             and f.endswith('_cp_output.png')]
     print(files)
 
     for name in files:
@@ -87,17 +100,9 @@ def getImageFromOmero(client, ids):
 def runCellpose(scriptParams, image_np):
     # DEFINE CELLPOSE MODEL
     # model_type='cyto' or model_type='nuclei'
-    model = models.Cellpose(gpu=False, model_type='nuclei')
-    # define CHANNELS to run segementation on
-    # grayscale=0, R=1, G=2, B=3
-    # channels = [cytoplasm, nucleus]
-    # if NUCLEUS channel does not exist, set the second channel to 0
-    # channels = [0,0]
-    # IF ALL YOUR IMAGES ARE THE SAME TYPE, you can give a list with 2 elements
-    # channels = [0,0] # IF YOU HAVE GRAYSCALE
-    # channels = [2,3] # IF YOU HAVE G=cytoplasm and B=nucleus
-    # channels = [2,1] # IF YOU HAVE G=cytoplasm and R=nucleu
-    chan = [0, 0]
+    model = models.Cellpose(gpu=False, model_type=scriptParams[_PARAM_MODEL])
+    chan = [scriptParams[_PARAM_CHANNEL_CYTOPLASM],
+            scriptParams[_PARAM_CHANNEL_NUCLEUS]]
     masks, flows, styles, diams = model.eval(image_np, diameter=None,
                                              channels=chan)
     return masks, flows, styles, diams
@@ -110,13 +115,30 @@ def runScript():
     dataTypes = [rstring('Image')]
 
     client = scripts.client(
-        'CellPose.py', 'Run pretrained CellPose model',
-        scripts.String("Data_Type", optional=False, grouping="01",
-                       values=dataTypes, default="Image"),
-        scripts.List("IDs", optional=False, grouping="02").ofType(rlong(0)),
-        scripts.String("Model", optional=False, grouping="03",
-                       values=CELLPOSE_MODELS,
-                       default=CELLPOSE_DEFAULT),
+        'CellPose.py',
+        '''Run pretrained CellPose model for segmentation
+
+        Select CHANNELS to run segmentation on.
+        Channel options are grayscale=0, R=1, G=2, B=3
+        if NUCLEUS channel does not exist, set the second channel to 0
+        Examples:
+        channels = [0,0] # IF YOU HAVE GRAYSCALE
+        channels = [2,3] # IF YOU HAVE G=cytoplasm and B=nucleus
+        channels = [2,1] # IF YOU HAVE G=cytoplasm and R=nucleus
+        ''',
+        scripts.String(_PARAM_DATA_TYPE, optional=False, grouping="01",
+                       values=dataTypes, default=_DEFAULT_DATA_TYPE),
+        scripts.List(_PARAM_IDS,
+                     optional=False, grouping="02").ofType(rlong(0)),
+        scripts.String(_PARAM_MODEL, optional=False, grouping="03",
+                       values=_MODELS_VALUES,
+                       default=_DEFAULT_MODEL),
+        scripts.Int(_PARAM_CHANNEL_CYTOPLASM, optional=False, grouping="04",
+                    values=_CHANNEL_VALUES,
+                    default=_DEFAULT_CHANNEL_CYTOPLASM),
+        scripts.Int(_PARAM_CHANNEL_NUCLEUS, optional=False, grouping="05",
+                    values=_CHANNEL_VALUES,
+                    default=_DEFAULT_CHANNEL_NUCLEUS),
         namespaces=[omero.constants.namespaces.NSDYNAMIC, RUN_ON_GPU_NS],
     )
 
