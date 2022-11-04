@@ -24,9 +24,11 @@ services:
       CONFIG_omero_db_name: omero
       CONFIG_omero_server_nodedescriptors: >-
         master:Blitz-0
-        omeroworker-1:Processor-0,Tables-0
+        omeroworker-1:Tables-0
         omeroworker-2:Indexer-0,PixelData-0
         omeroworker-3:DropBox,MonitorServer,FileServer,Storm
+        omeroworker-4:Processor-1
+        omeroworker-5:Processor-2
       CONFIG_omero_master_host: omeroserver
       ROOTPASS: omero
     networks:
@@ -36,6 +38,7 @@ services:
       - "4064:4064"
     volumes:
       - "omero:/OMERO"
+      - ./scripts:/scripts:ro
 
   omeroworker-1:
     build: ./worker
@@ -67,12 +70,46 @@ services:
     volumes:
       - "omero:/OMERO"
 
+  omeroworker-4:
+    build: 
+      context: ./
+      dockerfile: ./worker-no-gpu/Dockerfile
+    environment:
+      CONFIG_omero_master_host: omeroserver
+      OMERO_WORKER_NAME: omeroworker-4
+      OMERO_SERVER_GPU: False
+      CONFIG_omero_server_gpu: False
+      CONFIG_omero_logging_level: 10
+    networks:
+      - omero
+    volumes:
+      - "omero:/OMERO"
+
+  omeroworker-5:
+    build: 
+      context: ./
+      dockerfile: ./worker-gpu/Dockerfile
+      args:
+        VIRTUAL_ENV_CP: ${VIRTUAL_ENV_CP}
+        VIRTUAL_ENV_SD: ${VIRTUAL_ENV_SD}
+    environment:
+      CONFIG_omero_master_host: omeroserver
+      OMERO_WORKER_NAME: omeroworker-5
+      OMERO_SERVER_GPU: True
+      CONFIG_omero_server_gpu: True
+      CONFIG_omero_logging_level: 10
+    networks:
+      - omero
+    volumes:
+      - "omero:/OMERO"
+
   omeroweb:
     # This container uses the tag for the latest web release of OMERO 5
     # To upgrade to the next major release, increment the major version number
     image: "openmicroscopy/omero-web-standalone:5"
     environment:
       OMEROHOST: omeroserver
+      CONFIG_omero_web_login__logo: "https://cembo.eu/wp-content/uploads/2021/04/Amsterdam-UMC.png"
     networks:
       - omero
     ports:
