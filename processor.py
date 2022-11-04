@@ -1135,7 +1135,7 @@ class ProcessorI(omero.grid.Processor, omero.util.Servant):
         launcher = ""
         if scriptText[0:2] == "#!":
             launcher = scriptText.partition('\n')[0][2:]
-        self.logger.info(f"Parsed launcher: {scriptText.partition('\n')[0][2:]}")
+        self.logger.info(f"Parsed launcher: {launcher}")
         return launcher
 
 
