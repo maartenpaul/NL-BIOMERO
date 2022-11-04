@@ -2,8 +2,10 @@
 # -*- coding: utf-8 -*-
 
 #
-# Copyright (C) 2014 University of Dundee & Open Microscopy Environment.
+# Original work Copyright (C) 2014 University of Dundee
+#                                   & Open Microscopy Environment.
 #                    All Rights Reserved.
+# Modified work Copyright 2022 Torec Luik, Amsterdam UMC
 # Use is subject to license terms supplied in LICENSE.txt
 #
 

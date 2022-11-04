@@ -3,7 +3,7 @@
 #
 # OMERO Grid Processor
 # Original work Copyright 2008 Glencoe Software, Inc.  All Rights Reserved.
-# Modified work Copyright 2022 Torec Luk, Amsterdam UMC
+# Modified work Copyright 2022 Torec Luik, Amsterdam UMC
 # Use is subject to license terms supplied in LICENSE.txt
 #
 # Changes
