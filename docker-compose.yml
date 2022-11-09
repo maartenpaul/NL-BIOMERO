@@ -106,7 +106,8 @@ services:
   omeroweb:
     # This container uses the tag for the latest web release of OMERO 5
     # To upgrade to the next major release, increment the major version number
-    image: "openmicroscopy/omero-web-standalone:5"
+    #image: "openmicroscopy/omero-web-standalone:5"
+    build: ./web
     environment:
       OMEROHOST: omeroserver
       CONFIG_omero_web_login__logo: "https://cembo.eu/wp-content/uploads/2021/04/Amsterdam-UMC.png"
