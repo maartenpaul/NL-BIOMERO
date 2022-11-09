@@ -1,9 +1,12 @@
 #!/opt/omero/server/cellposeenv/bin/python
-# PROCESSOR-2 
-# Example OMERO.script using dynamic arguments
-# Included in omero/developers/scripts/user-guide.txt
-# A list of datasets will be dynamically generated and used to populate the
-# script parameters every time the script is called
+# -*- coding: utf-8 -*-
+#
+# Original work Copyright (C) 2014 University of Dundee
+#                                   & Open Microscopy Environment.
+#                    All Rights Reserved.
+# Modified work Copyright 2022 Torec Luik, Amsterdam UMC
+# Use is subject to license terms supplied in LICENSE.txt
+#
 
 from re import I
 import subprocess

@@ -1,8 +1,14 @@
 #!/opt/omero/server/cellposeenv/bin/python
-# Example OMERO.script using Cellpose segmentation
-# from a cellpose python environment
+# -*- coding: utf-8 -*-
+#
+# Original work Copyright (C) 2014 University of Dundee
+#                                   & Open Microscopy Environment.
+#                    All Rights Reserved.
 # Modified work Copyright 2022 Torec Luik, Amsterdam UMC
 # Use is subject to license terms supplied in LICENSE.txt
+#
+# Example OMERO.script using Cellpose segmentation
+# from a cellpose python environment
 
 import subprocess
 import omero

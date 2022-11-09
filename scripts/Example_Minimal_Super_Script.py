@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 #
 # Original work Copyright (C) 2014 University of Dundee
 #                                   & Open Microscopy Environment.
@@ -9,9 +8,6 @@
 # Use is subject to license terms supplied in LICENSE.txt
 #
 
-"""
-FOR TRAINING PURPOSES ONLY!
-"""
 from __future__ import print_function
 import omero
 from omero.grid import JobParams
