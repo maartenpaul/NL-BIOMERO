@@ -1132,9 +1132,13 @@ class ProcessorI(omero.grid.Processor, omero.util.Servant):
 
     def parse_shebang(self, scriptText):
         # parse shebang
+        # replacement strings
+        WINDOWS_LINE_ENDING = '\r\n'
+        UNIX_LINE_ENDING = '\n'
         launcher = ""
         if scriptText[0:2] == "#!":
-            launcher = scriptText.partition('\n')[0][2:]
+            launcher = scriptText.replace(
+                WINDOWS_LINE_ENDING, UNIX_LINE_ENDING).partition('\n')[0][2:]
         self.logger.info(f"Parsed launcher: {launcher}")
         return launcher
 
