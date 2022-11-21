@@ -15,7 +15,7 @@ import omero
 import omero.gateway
 from omero.gateway import BlitzGateway
 from omero import scripts
-from omero.rtypes import rstring, rlong, robject, unwrap
+from omero.rtypes import rstring, rlong, robject, unwrap, rint
 from stardist.models import StarDist2D
 from stardist import random_label_cmap
 from csbdeep.utils import normalize
@@ -39,7 +39,7 @@ def runStarDist(scriptParams, image_np):
     model = StarDist2D.from_pretrained(scriptParams[_PARAM_MODEL])
     labels, polygons = model.predict_instances(normalize(image_np))
     print(labels)
-    return labels, image_np
+    return labels, image_np, polygons
 
 
 def saveImageToOmero(labels, img, image, name, conn):
@@ -86,6 +86,65 @@ def getImageFromOmero(client, ids):
     return result_img, image, conn
 
 
+# def saveROIsToGeoJson():
+#     # From github/ome/omero-guide-python/blob/master/notebooks/idr0062_prediction.ipynb
+#     # Convert into Polygon and add to Geometry Collection
+#     from geojson import Feature, FeatureCollection, Polygon
+#     import geojson
+#     c = 1
+#     shapes = []
+#     for i in range(len(results_details)):
+#         details = results_details[i]
+#         for obj_id, region in enumerate(details['coord']):
+#             coordinates = []
+#             x = region[1]
+#             y = region[0]
+#             for j in range(len(x)):
+#                 coordinates.append((float(x[j]), float(y[j])))
+#             # append the first coordinate to close the polygon
+#             coordinates.append(coordinates[0])
+#             shape = Polygon(coordinates)
+#             properties = {
+#                 "stroke-width": 1,
+#                 "z": i,
+#                 "c": c,
+#             }
+#             shapes.append(Feature(geometry=shape, properties=properties))    
+
+#     gc = FeatureCollection(shapes)
+    
+#     # Save the shapes as geojson
+#     geojson_file = "stardist_shapes_%s.geojson" % image_id
+#     geojson_dump = geojson.dumps(gc, sort_keys=True)
+#     with open(geojson_file, 'w') as out:
+#         out.write(geojson_dump)
+
+def saveROIsToOmero(image_id, polygons, conn):
+    image = omero.model.ImageI(image_id, False)
+    rois = []
+    z = 0
+    # Convert into Polygon
+    # From github/ome/omero-guide-python/blob/master/notebooks/idr0062_prediction.ipynb
+    for obj_id, region in enumerate(polygons['coord']):
+        roi = omero.model.RoiI()
+        roi.setName(rstring("Object %s" % obj_id))
+        polygon = omero.model.PolygonI()
+        x = region[1]
+        y = region[0]
+        points = " ".join(
+            ["{},{}".format(x[j], y[j]) for j in range(len(x))])
+        polygon.setPoints(rstring(points))
+        polygon.theZ = rint(z)
+        polygon.theC = rint(0)
+        roi.addShape(polygon)
+        # Link the ROI and the image
+        roi.setImage(image)
+        rois.append(roi)  
+            
+    # Question 2: Save the ROI
+    rois = conn.getUpdateService().saveAndReturnArray(rois)
+
+
 def runScript():
     """
     The main entry point of the script
@@ -125,13 +184,15 @@ def runScript():
         image_np, image, conn = getImageFromOmero(client, ids)
 
         result_name = f"SD_{os.path.splitext(image.getName())[0]}.png"
-        labels, img = runStarDist(scriptParams, image_np)
+        labels, img, polygons = runStarDist(scriptParams, image_np)
 
         image, file_ann = saveImageToOmero(labels,
                                            img,
                                            image,
                                            result_name,
                                            conn)
+        
+        saveROIsToOmero(ids[0], polygons, conn)
 
         msg = "Script ran with Image ID: %s, Name: %s" % (ids[0],
                                                           image.getName())
