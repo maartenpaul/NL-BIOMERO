@@ -1,22 +1,37 @@
+# Brings up all OMERO nodes on _one_ host computer, but multiple containers
+
+# Version 3 is the newest version of the Compose file format
 version: "3"
 
+# Define all the services: database, omero server, omero web
 services:
-
+  # Name of our database, referenced in omero_db_host
   database:
+    # Define a prebuilt Postgres image with a version
     image: "postgres:11"
+    # Define environment variables (user/pass here)
     environment:
       POSTGRES_USER: omero
       POSTGRES_DB: omero
       POSTGRES_PASSWORD: omero
+    # Define named network to communicate with other containers
     networks:
       - omero
+    # Define named volumes to persist data on host after shutdown
     volumes:
       - "database:/var/lib/postgresql/data"
 
+  # Name of our omero server, referenced in omero_master_host
   omeroserver:
     # This container uses the tag for the latest server release of OMERO 5
     # To upgrade to the next major release, increment the major version number
-    image: "openmicroscopy/omero-server:5"
+    # image: "openmicroscopy/omero-server:5"
+    # We build this container locally from the Dockerfile in the ./server folder
+    build: ./server
+    # Define environment variables for use in the container.
+    # 'nodedescriptors' assigns roles to all the containers
+    # 'omero_db_*' are same as in 'database' description. 
+    # TODO: Should probably extract those to the .env file
     environment:
       CONFIG_omero_db_host: database
       CONFIG_omero_db_user: omero
@@ -24,101 +39,125 @@ services:
       CONFIG_omero_db_name: omero
       CONFIG_omero_server_nodedescriptors: >-
         master:Blitz-0
-        omeroworker-1:Tables-0
-        omeroworker-2:Indexer-0,PixelData-0
-        omeroworker-3:DropBox,MonitorServer,FileServer,Storm
-        omeroworker-4:Processor-1
-        omeroworker-5:Processor-2
+        omeroworker-1:Tables-0,Indexer-0,PixelData-0
+        omeroworker-5:DropBox,MonitorServer,FileServer,Storm,Processor-2
       CONFIG_omero_master_host: omeroserver
       ROOTPASS: omero
+    # Define named network to communicate with other containers
     networks:
       - omero
+    # Map ports to ports on the host machine, to connect remotely
     ports:
       - "4063:4063"
       - "4064:4064"
+    # Define named volume and map a folder from the host machine
     volumes:
       - "omero:/OMERO"
       - ./scripts:/scripts:ro
 
+  # Name of our worker node, can be anything 
   omeroworker-1:
+    # We build this image locally in the ./worker folder
     build: ./worker
+    # Define variables for use in the container.
+    # WORKER_NAME is used in the omero/ice node description
     environment:
       CONFIG_omero_master_host: omeroserver
       OMERO_WORKER_NAME: omeroworker-1
+    # Named network to communicate with other containers
     networks:
       - omero
+    # Named volume to share data access and persist data
     volumes:
       - "omero:/OMERO"
 
-  omeroworker-2:
-    build: ./worker
-    environment:
-      CONFIG_omero_master_host: omeroserver
-      OMERO_WORKER_NAME: omeroworker-2
-    networks:
-      - omero
-    volumes:
-      - "omero:/OMERO"
+  # omeroworker-2:
+  #   build: ./worker
+  #   environment:
+  #     CONFIG_omero_master_host: omeroserver
+  #     OMERO_WORKER_NAME: omeroworker-2
+  #   networks:
+  #     - omero
+  #   volumes:
+  #     - "omero:/OMERO"
 
-  omeroworker-3:
-    build: ./worker
-    environment:
-      CONFIG_omero_master_host: omeroserver
-      OMERO_WORKER_NAME: omeroworker-3
-    networks:
-      - omero
-    volumes:
-      - "omero:/OMERO"
+  # omeroworker-3:
+  #   build: ./worker
+  #   environment:
+  #     CONFIG_omero_master_host: omeroserver
+  #     OMERO_WORKER_NAME: omeroworker-3
+  #   networks:
+  #     - omero
+  #   volumes:
+  #     - "omero:/OMERO"
 
-  omeroworker-4:
-    build: 
-      context: ./
-      dockerfile: ./worker-no-gpu/Dockerfile
-    environment:
-      CONFIG_omero_master_host: omeroserver
-      OMERO_WORKER_NAME: omeroworker-4
-      OMERO_SERVER_GPU: False
-      CONFIG_omero_server_gpu: False
-      CONFIG_omero_logging_level: 10
-    networks:
-      - omero
-    volumes:
-      - "omero:/OMERO"
+  # omeroworker-4:
+  #   build: 
+  #     context: ./
+  #     dockerfile: ./worker-no-gpu/Dockerfile
+  #   environment:
+  #     CONFIG_omero_master_host: omeroserver
+  #     OMERO_WORKER_NAME: omeroworker-4
+  #     OMERO_SERVER_GPU: False
+  #     CONFIG_omero_server_gpu: False
+  #     CONFIG_omero_logging_level: 10
+  #   networks:
+  #     - omero
+  #   volumes:
+  #     - "omero:/OMERO"
 
+  # Define our processor worker
   omeroworker-5:
+    # Build this image locally from current map './'
+    # This way we can share file access from Dockerfile in './worker-gpu'
+    # so that only one 'processor.py' is needed
+    # Uses args to provide variables from '.env' file to the Dockerfile
     build: 
       context: ./
       dockerfile: ./worker-gpu/Dockerfile
       args:
         VIRTUAL_ENV_CP: ${VIRTUAL_ENV_CP}
         VIRTUAL_ENV_SD: ${VIRTUAL_ENV_SD}
+    # Define variables for use in the container.
+    # WORKER_NAME is used in the omero/ice node description
+    # logging_level doesn't work, but should increase logging
+    # GPU variables inform 'processor.py' of hardware settings.
+    # TODO: revisit the use of these variables. Probably remove them.
     environment:
       CONFIG_omero_master_host: omeroserver
       OMERO_WORKER_NAME: omeroworker-5
       OMERO_SERVER_GPU: True
       CONFIG_omero_server_gpu: True
       CONFIG_omero_logging_level: 10
+    # Named network to communicate with other containers
     networks:
       - omero
+    # Named volume to share data access and persist data
     volumes:
       - "omero:/OMERO"
 
+  # Service for the omero.web UI
   omeroweb:
-    # This container uses the tag for the latest web release of OMERO 5
-    # To upgrade to the next major release, increment the major version number
     #image: "openmicroscopy/omero-web-standalone:5"
+    # We build this also locally in './web' folder, to add some extensions
     build: ./web
+    # Environment variables for in the container
+    # login__logo supplies a logo on the starting page of web UI
     environment:
       OMEROHOST: omeroserver
       CONFIG_omero_web_login__logo: "https://cembo.eu/wp-content/uploads/2021/04/Amsterdam-UMC.png"
+    # Named network to communicate with other containers
     networks:
       - omero
+    # Map ports to ports on the host machine, to allow opening of webpage
     ports:
       - "4080:4080"
 
+# Define the network(s) to communicate between containers
 networks:
   omero:
 
+# Define the named volume(s) to persist data to the host computer
 volumes:
   database:
   omero:
