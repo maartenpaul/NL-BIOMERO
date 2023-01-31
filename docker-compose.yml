@@ -133,8 +133,10 @@ services:
     networks:
       - omero
     # Named volume to share data access and persist data
+    # Forward host SSH setup to container
     volumes:
       - "omero:/OMERO"
+      - "~/.ssh:/root/.ssh:ro"
 
   # Service for the omero.web UI
   omeroweb:

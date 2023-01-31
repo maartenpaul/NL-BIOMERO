@@ -33,7 +33,13 @@ RUN $VIRTUAL_ENV_SD/bin/python -m pip install stardist
 ## Adjust processor code with AMC Processor
 COPY processor.py /opt/omero/server/venv3/lib/python3.6/site-packages/omero/
 
-## Replace the default startup scripts
+## Replace the default configuration files
+COPY worker-gpu/ice.config worker-gpu/worker.cfg /opt/omero/server/OMERO.server/etc/templates/
+
+## Install SSH client
+RUN yum install -y openssh-clients
+
+## OMERO: Replace the default startup scripts
 RUN rm /startup/60-database.sh
 COPY worker-gpu/99-run.sh /startup/99-run.sh
 USER omero-server
