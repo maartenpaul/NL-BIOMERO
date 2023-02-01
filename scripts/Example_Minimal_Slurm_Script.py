@@ -192,7 +192,7 @@ def runScript():
         cmdlist = []
         if scriptParams[_RUNSLRM]:
             if scriptParams[_SQUEUE]: 
-                cmdlist.append("squeue")
+                cmdlist.append(f"squeue -u {SLURM_USER}")
             if scriptParams[_SINFO]: 
                 cmdlist.append("sinfo")
         if scriptParams[_SOTHER]: 
