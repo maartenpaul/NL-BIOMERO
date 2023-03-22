@@ -7,11 +7,14 @@ USER root
 ## Default Python environment
 ENV VIRTUAL_ENV=/opt/omero/server/venv3
 ENV PATH=/opt/ice-3.6.5-0.3.0/bin:$VIRTUAL_ENV/bin/:$PATH
-RUN python3 -m venv $VIRTUAL_ENV
+RUN python3 -m venv $VIRTUAL_ENV \
+    && python3 -m pip install --upgrade pip \
+    && python3 -m pip install fabric
+# SSH library fabric
 
 ## Create extra Python environments
 # There is no clone with 'venv' so we have to reinstall from requirements file instead
-RUN python -m pip freeze > requirements.txt
+RUN python3 -m pip freeze > requirements.txt
 # Create Python environment for Cellpose
 ARG VIRTUAL_ENV_CP
 ENV VIRTUAL_ENV_CP=${VIRTUAL_ENV_CP}
