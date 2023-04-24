@@ -136,7 +136,7 @@ services:
     # Forward host SSH setup to container
     volumes:
       - "omero:/OMERO"
-      - "~/.ssh:/opt/omero/server/.ssh:ro"
+      - "~/.ssh:/tmp/.ssh:ro"
 
   # Service for the omero.web UI
   omeroweb:

@@ -19,19 +19,17 @@ RUN python3 -m pip freeze > requirements.txt
 ARG VIRTUAL_ENV_CP
 ENV VIRTUAL_ENV_CP=${VIRTUAL_ENV_CP}
 RUN python3 -m venv $VIRTUAL_ENV_CP
-RUN $VIRTUAL_ENV_CP/bin/python -m pip install --upgrade pip
-RUN $VIRTUAL_ENV_CP/bin/python -m pip install -r requirements.txt
-RUN $VIRTUAL_ENV_CP/bin/python -m pip install mxnet-mkl
-RUN $VIRTUAL_ENV_CP/bin/python -m pip install matplotlib
-RUN $VIRTUAL_ENV_CP/bin/python -m pip install cellpose
+RUN $VIRTUAL_ENV_CP/bin/python -m pip install --upgrade pip \
+    && $VIRTUAL_ENV_CP/bin/python -m pip install -r requirements.txt \ 
+    && $VIRTUAL_ENV_CP/bin/python -m pip install mxnet-mkl==1.6.0 matplotlib==3.3.4 opencv-python-headless==4.6.0.66 cellpose==0.0.3.1
+
 # # Create Python environment for Stardist
 ARG VIRTUAL_ENV_SD
 ENV VIRTUAL_ENV_SD=${VIRTUAL_ENV_SD}
 RUN python3 -m venv $VIRTUAL_ENV_SD
-RUN $VIRTUAL_ENV_SD/bin/python -m pip install --upgrade pip
-RUN $VIRTUAL_ENV_SD/bin/python -m pip install -r requirements.txt
-RUN $VIRTUAL_ENV_SD/bin/python -m pip install tensorflow 
-RUN $VIRTUAL_ENV_SD/bin/python -m pip install stardist
+RUN $VIRTUAL_ENV_SD/bin/python -m pip install --upgrade pip \
+    && $VIRTUAL_ENV_SD/bin/python -m pip install -r requirements.txt \
+    && $VIRTUAL_ENV_SD/bin/python -m pip install tensorflow==2.6.2 stardist==0.8.3
 
 ## Adjust processor code with AMC Processor
 COPY processor.py /opt/omero/server/venv3/lib/python3.6/site-packages/omero/
@@ -41,6 +39,8 @@ COPY worker-gpu/ice.config worker-gpu/worker.cfg /opt/omero/server/OMERO.server/
 
 ## Install SSH client
 RUN yum install -y openssh-clients
+COPY mount-ssh.sh /startup/10-mount-ssh.sh
+RUN chmod +x /bin/mount-ssh.sh
 
 ## OMERO: Replace the default startup scripts
 RUN rm /startup/60-database.sh
