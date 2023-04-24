@@ -39,8 +39,8 @@ COPY worker-gpu/ice.config worker-gpu/worker.cfg /opt/omero/server/OMERO.server/
 
 ## Install SSH client
 RUN yum install -y openssh-clients
-COPY mount-ssh.sh /startup/10-mount-ssh.sh
-RUN chmod +x /bin/mount-ssh.sh
+COPY worker-gpu/10-mount-ssh.sh /startup/10-mount-ssh.sh
+RUN chmod +x /startup/10-mount-ssh.sh
 
 ## OMERO: Replace the default startup scripts
 RUN rm /startup/60-database.sh
