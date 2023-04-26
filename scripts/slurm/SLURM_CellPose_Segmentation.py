@@ -13,9 +13,7 @@ import omero
 from omero.grid import JobParams
 from omero.rtypes import rstring, unwrap
 import omero.scripts as omscripts
-from pathlib import Path
 from typing import List
-import itertools
 import re
 from fabric import Connection, Result
 from paramiko import SSHException
@@ -30,8 +28,6 @@ _PARAM_MODEL = "Model"
 _PARAM_NUCCHANNEL = "Nuclear Channel"
 _PARAM_PROBTHRESH = "Cell probability threshold"
 _PARAM_DIAMETER = "Cell diameter"
-_versions = ["vlatest"]
-_DEFAULT_DATA_FOLDER = "SLURM_IMAGES_"
 DEFAULT_MAIL = "No"
 DEFAULT_TIME = "00:15:00"
 
@@ -315,6 +311,7 @@ def runScript():
             email = unwrap(client.getInput("E-mail"))
             time = unwrap(client.getInput("Duration"))
             cmdlist = []
+            # TODO move unzip command to SlurmClient
             unzip_cmd = f"mkdir {BASE_DATA_PATH}/{zipfile} \
                 {BASE_DATA_PATH}/{zipfile}/data \
                 {BASE_DATA_PATH}/{zipfile}/data/in \
@@ -323,8 +320,10 @@ def runScript():
                 7z e -y -o{BASE_DATA_PATH}/{zipfile}/data/in \
                 {BASE_DATA_PATH}/{zipfile}.zip *.tiff *.tif"
             cmdlist.append(unzip_cmd)
+            # TODO move update command to SlurmClient
             update_cmd = f"git -C {GIT_DIR_SCRIPT} pull"
             cmdlist.append(update_cmd)
+            # TODO move sbatch command to SlurmClient
             sbatch_cmd = f"export DATA_PATH={BASE_DATA_PATH}/{zipfile} ; \
             export IMAGE_PATH={IMAGE_PATH} ; \
             export IMAGE_VERSION={cellpose_version} ; \

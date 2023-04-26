@@ -14,9 +14,9 @@ from omero.grid import JobParams
 from omero.rtypes import rstring
 import omero.scripts as omscripts
 import subprocess
-from pathlib import Path
 from typing import List
 from fabric import Connection, Result
+from paramiko import SSHException
 
 _PYCMD = "Python_Command"
 _DEFAULT_CMD = "import numpy as np; arr = np.array([1,2,3,4,5]); print(arr.mean())"

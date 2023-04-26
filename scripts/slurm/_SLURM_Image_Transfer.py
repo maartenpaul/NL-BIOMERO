@@ -42,6 +42,7 @@ import zipfile
 from datetime import datetime
 from fabric import Connection, Result
 import configparser
+from paramiko import SSHException
 try:
     from PIL import Image  # see ticket:2597
 except ImportError:
