@@ -11,29 +11,18 @@
 from __future__ import print_function
 import omero
 from omero.grid import JobParams
-from omero.rtypes import rstring, unwrap, rlong
-from omero.gateway import BlitzGateway
+from omero.rtypes import rstring, unwrap
 import omero.scripts as omscripts
-import subprocess
-import os
 from pathlib import Path
-from typing import Union, List
+from typing import List
 import itertools
 import re
+from fabric import Connection, Result
+from paramiko import SSHException
+import configparser
 
-SLURM_HOME = "/home/sandbox/ttluik"
-IMAGE_PATH = f"{SLURM_HOME}/my-scratch/singularity_images/workflows/cellpose"
-BASE_DATA_PATH = f"{SLURM_HOME}/my-scratch/data"
-GIT_DIR_SCRIPT = f"{SLURM_HOME}/slurm-scripts/"
 IMAGE_EXPORT_SCRIPT = "_SLURM_Image_transfer.py"
 SCRIPTNAMES = [IMAGE_EXPORT_SCRIPT]
-SSH_KEY = '~/.ssh/id_rsa'
-SLURM_REMOTE = 'luna.amc.nl'
-SLURM_USER = 'ttluik'
-SSH_HOSTS = '~/.ssh/known_hosts'
-_VERSION_CMD = f"ls -h {IMAGE_PATH} | grep -oP '(?<=-)v.+(?=.simg)'"
-_DATA_SEP = "--data--"
-_DATA_CMD = f"echo '{_DATA_SEP}' && ls -h {BASE_DATA_PATH} | grep -oP '.+(?=.zip)'"
 _DEFAULT_DATA_TYPE = "Image"
 _DEFAULT_MODEL = "nuclei"
 _VALUES_MODELS = [rstring(_DEFAULT_MODEL), rstring("cyto")]
@@ -47,113 +36,206 @@ DEFAULT_MAIL = "No"
 DEFAULT_TIME = "00:15:00"
 
 
-# TODO use Fabric library?
-class SshClient():
-    """ Perform commands and copy files on ssh using subprocess 
-        and native ssh client (OpenSSH).
-        Based on https://gist.github.com/TorecLuik/aae824e081895707f0a82585d273164f
+class SlurmClient(Connection):
+    """A client for connecting to and interacting with a Slurm cluster over SSH.
+
+    This class extends the Fabric Connection class, adding methods and attributes specific to working with Slurm.
+    SlurmClient accepts the same arguments as Connection.
+
+    Attributes:
+
+    Example:
+        # Create a SlurmClient object as contextmanager
+
+        with SlurmClient() as client:
+
+            # Run a command on the remote host
+
+            result = client.run('sbatch myjob.sh')
+
+            # Check whether the command succeeded
+
+            if result.ok:
+                print('Job submitted successfully!')
+
+            # Print the output of the command
+
+            print(result.stdout)
+
+        # Create SlurmClient object from config
+
+        with SlurmClient.from_config() as client:
+
+            ...
     """
+    _DEFAULT_CONFIG_PATH_1 = "/etc/slurm-config.ini"
+    _DEFAULT_CONFIG_PATH_2 = "~/slurm-config.ini"
+    _DEFAULT_HOST = "slurm"
+    _DEFAULT_INLINE_SSH_ENV = True
+    _DEFAULT_SLURM_DATA_PATH = "my-scratch/data/"
+    _DEFAULT_SLURM_IMAGES_PATH = "my-scratch/singularity_images/workflows/"
+    _GIT_DIR_SCRIPT = "slurm-scripts/"
+    _OUT_SEP = "--split--"
+    _VERSION_CMD = "ls -h {slurm_images_path}{image_path} | grep -oP '(?<=-)v.+(?=.simg)'"
+    _DATA_CMD = "ls -h {slurm_data_path} | grep -oP '.+(?=.zip)'"
 
     def __init__(self,
-                 user: str,
-                 remote: str,
-                 key_path: Union[str, Path],
-                 known_hosts: str = "/dev/null") -> None:
-        """
+                 host=_DEFAULT_HOST,
+                 user=None,
+                 port=None,
+                 config=None,
+                 gateway=None,
+                 forward_agent=None,
+                 connect_timeout=None,
+                 connect_kwargs=None,
+                 inline_ssh_env=_DEFAULT_INLINE_SSH_ENV,
+                 slurm_data_path: str = _DEFAULT_SLURM_DATA_PATH,
+                 slurm_images_path: str = _DEFAULT_SLURM_IMAGES_PATH,
+                 slurm_model_paths: dict = None
+                 ):
+        super(SlurmClient, self).__init__(host,
+                                          user,
+                                          port,
+                                          config,
+                                          gateway,
+                                          forward_agent,
+                                          connect_timeout,
+                                          connect_kwargs,
+                                          inline_ssh_env)
+        self.slurm_data_path = slurm_data_path
+        self.slurm_images_path = slurm_images_path
+        self.slurm_model_paths = slurm_model_paths
+
+    @classmethod
+    def from_config(cls, configfile: str = '') -> 'SlurmClient':
+        """Creates a new SlurmClient object using the parameters read from a configuration file (.ini).
+
+        Defaults paths to look for config files are:
+            - /etc/slurm-config.ini
+            - ~/slurm-config.ini
+
+        Note that this is only for the SLURM specific values that we added.
+        Most configuration values are set via configuration mechanisms from Fabric library,
+        like SSH settings being loaded from SSH config, /etc/fabric.yml or environment variables.
+        See Fabric's documentation for more info on configuration if needed.
 
         Args:
-            user (str): username for the remote
-            remote (str): remote host IP/DNS
-            key_path (str or pathlib.Path): path to .pem file
-            known_hosts (str, optional): path to known_hosts file
+            configfile (str): The path to your configuration file. Optional.
+
+        Returns:
+            SlurmClient: A new SlurmClient object.
         """
-        self.user = user
-        self.remote = remote
-        self.key_path = str(key_path)
-        self.known_hosts = known_hosts
-
-    def cmd(self,
-            cmds: List[str],
-            check=True,
-            strict_host_key_checking=True,
-            **run_kwargs) -> subprocess.CompletedProcess:
-        """runs commands consecutively, ensuring success of each
-            after calling the next command.
-
-        Args:
-            cmds (list[str]): list of commands to run.
-            strict_host_key_checking (bool, optional): Defaults to True.
-        """
-
-        # strict_host_key_checking = 'yes' if strict_host_key_checking else 'no'
-        strict_host_key_checking = 'no'
-        cmd = ' && '.join(cmds)
-        print(f"CMD: {cmd} || extra args: {run_kwargs}")
-        return subprocess.run(
-            [
-                'ssh',
-                '-i', self.key_path,
-                '-o', f'StrictHostKeyChecking={strict_host_key_checking}',
-                '-o', f'UserKnownHostsFile={self.known_hosts}',
-                # '-o', 'LogLevel=DEBUG',
-                f'{self.user}@{self.remote}',
-                cmd
-            ],
-            check=check,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            **run_kwargs
-        )
-
-    def scp(self,
-            sources: List[Union[str, bytes, os.PathLike]],
-            destination: Union[str, bytes, os.PathLike],
-            check=True,
-            strict_host_key_checking=False,
-            recursive=False,
-            **run_kwargs) -> subprocess.CompletedProcess:
-        """Copies `srouce` file to remote `destination` using the 
-            native `scp` command.
-
-        Args:
-            source (Union[str, bytes, os.PathLike]): List of source files path.
-            destination (Union[str, bytes, os.PathLike]): Destination path on remote.
-        """
-
-        strict_host_key_checking = 'yes' if strict_host_key_checking else 'no'
-
-        return subprocess.run(
-            list(filter(bool, [
-                'scp',
-                '-i', self.key_path,
-                '-o', f'StrictHostKeyChecking={strict_host_key_checking}',
-                '-o', 'UserKnownHostsFile=/dev/null',
-                '-o', 'LogLevel=ERROR',
-                '-r' if recursive else '',
-                *map(str, sources),
-                # sources,
-                f'{self.user}@{self.remote}:{str(destination)}',
-            ])),
-            check=check,
-            **run_kwargs
-        )
+        # Load the configuration file
+        configs = configparser.ConfigParser(allow_no_value=True)
+        # Loads from default locations and given location, missing files are ok
+        configs.read([cls._DEFAULT_CONFIG_PATH_1,
+                     cls._DEFAULT_CONFIG_PATH_2, configfile])
+        # Read the required parameters from the configuration file, fallback to defaults
+        host = configs.get("SSH", "host", fallback=cls._DEFAULT_HOST)
+        inline_ssh_env = configs.getboolean(
+            "SSH", "inline_ssh_env", fallback=cls._DEFAULT_INLINE_SSH_ENV)
+        slurm_data_path = configs.get(
+            "SLURM", "slurm_data_path", fallback=cls._DEFAULT_SLURM_DATA_PATH)
+        slurm_images_path = configs.get(
+            "SLURM", "slurm_images_path", fallback=cls._DEFAULT_SLURM_IMAGES_PATH)
+        slurm_model_paths = dict(configs.items("MODELS"))
+        # Create the SlurmClient object with the parameters read from the config file
+        return cls(host=host,
+                   inline_ssh_env=inline_ssh_env,
+                   slurm_data_path=slurm_data_path,
+                   slurm_images_path=slurm_images_path,
+                   slurm_model_paths=slurm_model_paths)
 
     def validate(self):
-        return self.cmd([f'echo " "'], check=False).returncode == 0
+        """Validate the connection to the Slurm cluster by running a simple command.
 
-    def ssh_connect_cmd(self) -> str:
-        return f'ssh -i {self.key_path} {self.user}@{self.remote}'
+        Returns:
+            bool: True if the command is executed successfully, False otherwise.
+        """
+        return self.run('echo " "').ok
 
+    def run_commands(self, cmdlist: List[str], sep=' && ') -> Result:
+        """Runs a list of shell commands consecutively, ensuring success of each before calling the next.
 
-def getImageVersionsAndDataFiles(slurmClient):
-    if slurmClient.validate():
-        cmdlist = [_VERSION_CMD, _DATA_CMD]
-        slurm_response = call_slurm(slurmClient, cmdlist)
-        responselist = slurm_response[0].strip().split('\n')
-        split_responses = [list(y) for x, y in itertools.groupby(responselist, lambda z: z == _DATA_SEP) if not x]
-        return split_responses[0], split_responses[1]
-    else: 
-        return _versions, [_DEFAULT_DATA_FOLDER]
+        These commands retain the same session (env vars etc.), unlike running them separately.
+
+        Args:
+            cmdlist (List[str]): A list of shell commands to run on SLURM
+
+        Returns:
+            Result: The result of the last command in the list.
+        """
+        cmd = sep.join(cmdlist)
+        print(f"Running commands, with sep {sep}: {cmd}")
+        return self.run(cmd)
+
+    def run_commands_split_out(self, cmdlist: List[str]) -> List[str]:
+        """Runs a list of shell commands consecutively and splits the output of each command.
+
+        Each command in the list is executed with a separator in between that is unique and can be used to split
+        the output of each command later. The separator used is specified by the `_OUT_SEP` attribute of the
+        SlurmClient instance.
+
+        Args:
+            cmdlist (List[str]): A list of shell commands to run.
+
+        Returns:
+            List[str]: A list of strings, where each string corresponds to the output of a single command
+                    in `cmdlist` split by the separator `_OUT_SEP`.
+        Raises:
+            SSHException: If any of the commands fail to execute successfully.
+        """
+        result = self.run_commands(cmdlist=cmdlist,
+                                   sep=f" && echo {self._OUT_SEP} && ")
+        if result.ok:
+            response = result.stdout
+            split_responses = response.split(self._OUT_SEP)
+            return split_responses
+        else:
+            error = f"Result is not ok: {result}"
+            print(error)
+            raise SSHException(error)
+
+    def transfer_data(self, local_path: str) -> Result:
+        """Transfers a file or directory from the local machine to the remote Slurm cluster.
+
+        Args:
+            local_path (str): The local path to the file or directory to transfer.
+
+        Returns:
+            Result: The result of the file transfer operation.
+        """
+        print(
+            f"Transfering file {local_path} to {self.slurm_data_path}")
+        return self.put(local=local_path, remote=self.slurm_data_path)
+
+    def get_image_versions_and_data_files(self, model: str) -> List[List[str]]:
+        """
+        Gets the available image versions and (input) data files for a given model.
+
+        Args:
+            model (str): The name of the model to query for.
+
+        Returns:
+            List[List[str]]: A list of 2 lists, the first containing the available image versions
+            and the second containing the available data files.
+        Raises:
+            ValueError: If the provided model is not found in the SlurmClient's known model paths.
+        """
+        try:
+            image_path = self.slurm_model_paths.get(model)
+        except KeyError:
+            raise ValueError(
+                f"No path known for provided model {model}, in {self.slurm_model_paths}")
+        cmdlist = [self._VERSION_CMD.format(slurm_images_path=self.slurm_images_path,
+                                            image_path=image_path),
+                   self._DATA_CMD.format(slurm_data_path=self.slurm_data_path)]
+        # split responses per command
+        response_list = self.run_commands_split_out(cmdlist)
+        # split lines further into sublists
+        response_list = [response.strip().split('\n')
+                         for response in response_list]
+        return response_list[0], response_list[1]
 
 
 def runScript():
@@ -161,165 +243,127 @@ def runScript():
     The main entry point of the script
     """
 
-    # Script definition
+    with SlurmClient.from_config() as slurmClient:
 
-    # Script name, description and 2 parameters are defined here.
-    # These parameters will be recognised by the Insight and web clients and
-    # populated with the currently selected Image(s)
-    slurmClient = SshClient(user=SLURM_USER,
-                            remote=SLURM_REMOTE,
-                            key_path=SSH_KEY,
-                            known_hosts=SSH_HOSTS)
-
-    params = JobParams()
-    params.authors = ["Torec Luik"]
-    params.version = "0.0.2"
-    params.description = f'''Script to run CellPose on slurm cluster.
-    First run the {IMAGE_EXPORT_SCRIPT} script to export your data to the cluster.
-    
-    Specifically will run: 
-    https://hub.docker.com/r/torecluik/t_nucleisegmentation-cellpose
-
-    This runs a script remotely on: {SLURM_REMOTE}
-    Connection ready? {slurmClient.validate()}
-    '''
-    params.name = 'Slurm Cellpose Segmentation'
-    params.contact = 't.t.luik@amsterdamumc.nl'
-    params.institutions = ["Amsterdam UMC"]
-    params.authorsInstitutions = [[1]]
-    
-    _versions, _datafiles = getImageVersionsAndDataFiles(slurmClient)
-    input_list = [
-        omscripts.Bool("CellPose", grouping="04", default=True),
-        omscripts.String(_PARAM_MODEL, optional=False, grouping="04.3",
-                         values=_VALUES_MODELS, default=_DEFAULT_MODEL),
-        omscripts.Int(_PARAM_NUCCHANNEL, optional=True, grouping="04.4",
-                      description="Channel with the nuclei (to segment)",
-                      default=0),
-        omscripts.Float(_PARAM_PROBTHRESH, optional=True, grouping="04.5",
-                        description="threshold when to segment (0 = everything, 1 = nothing)",
-                        default=0.5),
-        omscripts.Float(_PARAM_DIAMETER, optional=True, grouping="04.6",
-                        description="Diameter of a cell. Leave at 0 to let the computer guess.",
-                        default=0),
-        omscripts.String("Folder_Name", grouping="05",
-                         description=f"Name of folder where images are stored, as provided with {IMAGE_EXPORT_SCRIPT}",
-                         values=_datafiles),
-        omscripts.Bool("SLURM Job Parameters", grouping="06", default=True),
-        omscripts.String("Version", grouping="06.1",
-                         description="Version of the Singularity Image of Cellpose",
-                         values=_versions),
-        omscripts.String("Duration", grouping="06.2",
-                         description="Maximum time the script should run for. Max is 8 hours. Notation is hh:mm:ss",
-                         default=DEFAULT_TIME),
-        omscripts.String("E-mail", grouping="06.3",
-                         description="Provide an e-mail if you want a mail when your job is done or cancelled.",
-                         default=DEFAULT_MAIL)
-    ]
-    inputs = {
-        p._name: p for p in input_list
-    }
-    params.inputs = inputs
-    params.namespaces = [omero.constants.namespaces.NSDYNAMIC] 
-    client = omscripts.client(params)
-
-    # we can now create our Blitz Gateway by wrapping the client object
-    # conn = BlitzGateway(client_obj=client)
-    
-    # get the 'IDs' parameter (which we have restricted to 'Image' IDs)
-    # ids = unwrap(client.getInput("IDs"))
-    cellpose_version = unwrap(client.getInput("Version"))
-    try:
-        ## 1. Get image(s) from OMERO
-        ## 2. Send image(s) to SLURM
-        # Use _SLURM_Image_Transfer script from Omero
+        params = JobParams()
+        params.authors = ["Torec Luik"]
+        params.version = "0.0.3"
+        params.description = f'''Script to run CellPose on slurm cluster.
+        First run the {IMAGE_EXPORT_SCRIPT} script to export your data to the cluster.
         
-        ## 3. Call SLURM (segmentation)
-        zipfile = unwrap(client.getInput("Folder_Name"))
-        cp_model = unwrap(client.getInput(_PARAM_MODEL))
-        nuc_channel = unwrap(client.getInput(_PARAM_NUCCHANNEL))
-        prob_threshold = unwrap(client.getInput(_PARAM_PROBTHRESH))
-        cell_diameter = unwrap(client.getInput(_PARAM_DIAMETER))
-        email = unwrap(client.getInput("E-mail"))
-        if email == DEFAULT_MAIL:
-            use_email = "t.t.luik@amsterdamumc.nl"
-        else:
-            use_email = email
-        time = unwrap(client.getInput("Duration"))
-        cmdlist = []
-        unzip_cmd = f"mkdir {BASE_DATA_PATH}/{zipfile} \
-            {BASE_DATA_PATH}/{zipfile}/data \
-            {BASE_DATA_PATH}/{zipfile}/data/in \
-            {BASE_DATA_PATH}/{zipfile}/data/out \
-            {BASE_DATA_PATH}/{zipfile}/data/gt; \
-            7z e -y -o{BASE_DATA_PATH}/{zipfile}/data/in \
-            {BASE_DATA_PATH}/{zipfile}.zip *.tiff *.tif"
-        cmdlist.append(unzip_cmd)
-        update_cmd = f"git -C {GIT_DIR_SCRIPT} pull"
-        cmdlist.append(update_cmd)
-        sbatch_cmd = f"export DATA_PATH={BASE_DATA_PATH}/{zipfile} ; \
-        export IMAGE_PATH={IMAGE_PATH} ; \
-        export IMAGE_VERSION={cellpose_version} ; \
-        export DIAMETER={cell_diameter} ; \
-        export PROB_THRESHOLD={prob_threshold} ; \
-        export NUC_CHANNEL={nuc_channel} ; \
-        export CP_MODEL={cp_model} ; \
-        export USE_GPU=true ; \
-        sbatch --mail-user={use_email} --time={time} {GIT_DIR_SCRIPT}/jobs/cellpose.sh"
-        cmdlist.append(sbatch_cmd)
-        scriptParams = client.getInputs(unwrap=True) # just unwrapped a bunch already...
-        print_result = call_slurm(slurmClient, cmdlist) # ... Submitted batch job 73547
-        print_result = "".join(print_result)
-        print(print_result)
-        SLURM_JOB_ID = next((int(s.strip()) for s in print_result.split("Submitted batch job") if s.strip().isdigit()), -1)
-        print_result = f"Submitted to SLURM as batch job {SLURM_JOB_ID}."
-        ## 4. Poll SLURM results   
+        Specifically will run: 
+        https://hub.docker.com/r/torecluik/t_nucleisegmentation-cellpose
+        
+
+        This runs a script remotely on the SLURM cluster.
+        Connection ready? {slurmClient.validate()}
+        '''
+        params.name = 'Slurm Cellpose Segmentation'
+        params.contact = 't.t.luik@amsterdamumc.nl'
+        params.institutions = ["Amsterdam UMC"]
+        params.authorsInstitutions = [[1]]
+
+        _versions, _datafiles = slurmClient.get_image_versions_and_data_files('cellpose')
+        input_list = [
+            omscripts.Bool("CellPose", grouping="04", default=True),
+            omscripts.String(_PARAM_MODEL, optional=False, grouping="04.3",
+                             values=_VALUES_MODELS, default=_DEFAULT_MODEL),
+            omscripts.Int(_PARAM_NUCCHANNEL, optional=True, grouping="04.4",
+                          description="Channel with the nuclei (to segment)",
+                          default=0),
+            omscripts.Float(_PARAM_PROBTHRESH, optional=True, grouping="04.5",
+                            description="threshold when to segment (0 = everything, 1 = nothing)",
+                            default=0.5),
+            omscripts.Float(_PARAM_DIAMETER, optional=True, grouping="04.6",
+                            description="Diameter of a cell. Leave at 0 to let the computer guess.",
+                            default=0),
+            omscripts.String("Folder_Name", grouping="05",
+                             description=f"Name of folder where images are stored, as provided with {IMAGE_EXPORT_SCRIPT}",
+                             values=_datafiles),
+            omscripts.Bool("SLURM Job Parameters",
+                           grouping="06", default=True),
+            omscripts.String("Version", grouping="06.1",
+                             description="Version of the Singularity Image of Cellpose",
+                             values=_versions),
+            omscripts.String("Duration", grouping="06.2",
+                             description="Maximum time the script should run for. Max is 8 hours. Notation is hh:mm:ss",
+                             default=DEFAULT_TIME),
+            omscripts.String("E-mail", grouping="06.3",
+                             description="Provide an e-mail if you want a mail when your job is done or cancelled.",
+                             default=DEFAULT_MAIL)
+        ]
+        inputs = {
+            p._name: p for p in input_list
+        }
+        params.inputs = inputs
+        params.namespaces = [omero.constants.namespaces.NSDYNAMIC]
+        client = omscripts.client(params)
+
+        cellpose_version = unwrap(client.getInput("Version"))
         try:
+            # 1. Get image(s) from OMERO
+            # 2. Send image(s) to SLURM
+            # Use _SLURM_Image_Transfer script from Omero
+
+            # 3. Call SLURM (segmentation)
+            zipfile = unwrap(client.getInput("Folder_Name"))
+            cp_model = unwrap(client.getInput(_PARAM_MODEL))
+            nuc_channel = unwrap(client.getInput(_PARAM_NUCCHANNEL))
+            prob_threshold = unwrap(client.getInput(_PARAM_PROBTHRESH))
+            cell_diameter = unwrap(client.getInput(_PARAM_DIAMETER))
+            email = unwrap(client.getInput("E-mail"))
+            time = unwrap(client.getInput("Duration"))
             cmdlist = []
-            cmdlist.append(f"scontrol show job {SLURM_JOB_ID}")
-            print_job = call_slurm(slurmClient, cmdlist)
-            print(print_job[0])
-            job_state = re.search('JobState=(\w+) Reason=(\w+)', print_job[0]).group()
-            print_result += f"\n{job_state}"
-        except Exception as e:
-            print_result += f" ERROR WITH JOB: {e}"
+            unzip_cmd = f"mkdir {BASE_DATA_PATH}/{zipfile} \
+                {BASE_DATA_PATH}/{zipfile}/data \
+                {BASE_DATA_PATH}/{zipfile}/data/in \
+                {BASE_DATA_PATH}/{zipfile}/data/out \
+                {BASE_DATA_PATH}/{zipfile}/data/gt; \
+                7z e -y -o{BASE_DATA_PATH}/{zipfile}/data/in \
+                {BASE_DATA_PATH}/{zipfile}.zip *.tiff *.tif"
+            cmdlist.append(unzip_cmd)
+            update_cmd = f"git -C {GIT_DIR_SCRIPT} pull"
+            cmdlist.append(update_cmd)
+            sbatch_cmd = f"export DATA_PATH={BASE_DATA_PATH}/{zipfile} ; \
+            export IMAGE_PATH={IMAGE_PATH} ; \
+            export IMAGE_VERSION={cellpose_version} ; \
+            export DIAMETER={cell_diameter} ; \
+            export PROB_THRESHOLD={prob_threshold} ; \
+            export NUC_CHANNEL={nuc_channel} ; \
+            export CP_MODEL={cp_model} ; \
+            export USE_GPU=true ;"
+            if email != DEFAULT_MAIL:
+                sbatch_cmd += f" sbatch --mail-user={email} --time={time} {GIT_DIR_SCRIPT}/jobs/cellpose.sh"
+            else:
+                sbatch_cmd += f" sbatch --time={time} {GIT_DIR_SCRIPT}/jobs/cellpose.sh"
+            cmdlist.append(sbatch_cmd)
+            # ... Submitted batch job 73547
+            print_result = slurmClient.run_commands(cmdlist)
+            print_result = "".join(print_result.stdout)
+            print(print_result)
+            SLURM_JOB_ID = next((int(s.strip()) for s in print_result.split(
+                "Submitted batch job") if s.strip().isdigit()), -1)
+            print_result = f"Submitted to SLURM as batch job {SLURM_JOB_ID}."
+            # 4. Poll SLURM results
+            try:
+                cmdlist = []
+                cmdlist.append(f"scontrol show job {SLURM_JOB_ID}")
+                print_job = slurmClient.run_commands(cmdlist)
+                print(print_job.stdout)
+                job_state = re.search(
+                    'JobState=(\w+) Reason=(\w+)', print_job.stdout).group()
+                print_result += f"\n{job_state}"
+            except Exception as e:
+                print_result += f" ERROR WITH JOB: {e}"
 
-        ## 5. Retrieve SLURM images
-        
-        ## 6. Store results in OMERO
-        
-        ## 7. Script output
-        client.setOutput("Message", rstring(print_result))
-    finally:
-        client.closeSession()
+            # 5. Retrieve SLURM images
 
+            # 6. Store results in OMERO
 
-def call_slurm(slurmClient, cmdlist):
-    """Easier function to provide list of commandline orders to SLURM server.
-
-    Args:
-        slurmClient (SshClient): SLURM SshClient
-        cmdlist (List): List of commands to execute on SLURM
-
-    Returns:
-        String: Message describing results
-    """
-    print_result = []
-    try:
-        # run a list of commands
-        results = slurmClient.cmd(
-            cmdlist,
-            check=True,
-            strict_host_key_checking=False)
-        print(f"Ran slurm {results.__dict__}")
-        try:
-            print_result.append(f"{results.stdout.decode('utf-8')}")
-        except Exception:
-            print_result.append(f"{results.stderr.decode('utf-8')}")
-    except subprocess.CalledProcessError as e:
-        results = f"Error {e.__dict__}"
-        print(results)
-    return print_result
+            # 7. Script output
+            client.setOutput("Message", rstring(print_result))
+        finally:
+            client.closeSession()
 
 
 if __name__ == '__main__':
