@@ -31,24 +31,12 @@ SSH_KEY = '~/.ssh/id_rsa'
 SLURM_REMOTE = 'luna.amc.nl'
 SLURM_USER = 'ttluik'
 SSH_HOSTS = '~/.ssh/known_hosts'
-_PYCMD = "Python_Command"
-_DEFAULT_CMD = "import numpy as np; arr = np.array([1,2,3,4,5]); print(arr.mean())"
-_RUNPY = "Run_Python"
-_RUNSLRM = "Check_SLURM_Status"
-_SQUEUE = "Check_Queue"
-_SINFO = "Check_Cluster"
-_SOTHER = "Run_Other_Command"
-_SCMD = "Linux_Command"
-_DEFAULT_SCMD = "ls -la"
 _VERSION_CMD = f"ls -h {IMAGE_PATH} | grep -oP '(?<=-)v.+(?=.simg)'"
 _DATA_SEP = "--data--"
 _DATA_CMD = f"echo '{_DATA_SEP}' && ls -h {BASE_DATA_PATH} | grep -oP '.+(?=.zip)'"
 _DEFAULT_DATA_TYPE = "Image"
 _DEFAULT_MODEL = "nuclei"
 _VALUES_MODELS = [rstring(_DEFAULT_MODEL), rstring("cyto")]
-_VALUES_DATA_TYPE = [rstring(_DEFAULT_DATA_TYPE)]
-_PARAM_DATA_TYPE = "Data_Type"
-_PARAM_IDS = "IDs"
 _PARAM_MODEL = "Model"
 _PARAM_NUCCHANNEL = "Nuclear Channel"
 _PARAM_PROBTHRESH = "Cell probability threshold"
@@ -160,7 +148,7 @@ class SshClient():
 def getImageVersionsAndDataFiles(slurmClient):
     if slurmClient.validate():
         cmdlist = [_VERSION_CMD, _DATA_CMD]
-        slurm_response = call_slurm(slurmClient, [], cmdlist)
+        slurm_response = call_slurm(slurmClient, cmdlist)
         responselist = slurm_response[0].strip().split('\n')
         split_responses = [list(y) for x, y in itertools.groupby(responselist, lambda z: z == _DATA_SEP) if not x]
         return split_responses[0], split_responses[1]
@@ -200,25 +188,9 @@ def runScript():
     params.institutions = ["Amsterdam UMC"]
     params.authorsInstitutions = [[1]]
     
-    # input_list = [
-        # omscripts.Bool(_RUNPY, grouping="01", default=False),
-        # omscripts.String(_PYCMD, optional=False, grouping="01.1",
-        #                  description="The Python command to run on slurm",
-        #                  default=_DEFAULT_CMD),
-        # omscripts.Bool(_RUNSLRM, grouping="02", default=False),
-        # omscripts.Bool(_SQUEUE, grouping="02.1", default=False),
-        # omscripts.Bool(_SINFO, grouping="02.2", default=False),
-        # omscripts.Bool(_SOTHER, grouping="03", default=False),
-        # omscripts.String(_SCMD, optional=False, grouping="03.1",
-        #                  description="The linux command to run on slurm",
-        #                  default=_DEFAULT_SCMD),
     _versions, _datafiles = getImageVersionsAndDataFiles(slurmClient)
     input_list = [
         omscripts.Bool("CellPose", grouping="04", default=True),
-        # omscripts.String(_PARAM_DATA_TYPE, optional=False, grouping="04.1",
-        #                values=_VALUES_DATA_TYPE, default=_DEFAULT_DATA_TYPE),
-        # omscripts.List(_PARAM_IDS,
-        #              optional=False, grouping="04.2").ofType(rlong(0)),
         omscripts.String(_PARAM_MODEL, optional=False, grouping="04.3",
                          values=_VALUES_MODELS, default=_DEFAULT_MODEL),
         omscripts.Int(_PARAM_NUCCHANNEL, optional=True, grouping="04.4",
@@ -296,7 +268,7 @@ def runScript():
         sbatch --mail-user={use_email} --time={time} {GIT_DIR_SCRIPT}/jobs/cellpose.sh"
         cmdlist.append(sbatch_cmd)
         scriptParams = client.getInputs(unwrap=True) # just unwrapped a bunch already...
-        print_result = call_slurm(slurmClient, scriptParams, cmdlist) # ... Submitted batch job 73547
+        print_result = call_slurm(slurmClient, cmdlist) # ... Submitted batch job 73547
         print_result = "".join(print_result)
         print(print_result)
         SLURM_JOB_ID = next((int(s.strip()) for s in print_result.split("Submitted batch job") if s.strip().isdigit()), -1)
@@ -305,7 +277,7 @@ def runScript():
         try:
             cmdlist = []
             cmdlist.append(f"scontrol show job {SLURM_JOB_ID}")
-            print_job = call_slurm(slurmClient, [], cmdlist)
+            print_job = call_slurm(slurmClient, cmdlist)
             print(print_job[0])
             job_state = re.search('JobState=(\w+) Reason=(\w+)', print_job[0]).group()
             print_result += f"\n{job_state}"
@@ -322,22 +294,31 @@ def runScript():
         client.closeSession()
 
 
-def call_slurm(slurmClient, scriptParams, cmdlist):
-    print(f"Validating slurm connection:\
-              {slurmClient.validate()} for {slurmClient.__dict__}")
+def call_slurm(slurmClient, cmdlist):
+    """Easier function to provide list of commandline orders to SLURM server.
+
+    Args:
+        slurmClient (SshClient): SLURM SshClient
+        cmdlist (List): List of commands to execute on SLURM
+
+    Returns:
+        String: Message describing results
+    """
     print_result = []
     try:
         # run a list of commands
         results = slurmClient.cmd(
-                cmdlist,
-                check=True,
-                strict_host_key_checking=False)
+            cmdlist,
+            check=True,
+            strict_host_key_checking=False)
         print(f"Ran slurm {results.__dict__}")
+        try:
+            print_result.append(f"{results.stdout.decode('utf-8')}")
+        except Exception:
+            print_result.append(f"{results.stderr.decode('utf-8')}")
     except subprocess.CalledProcessError as e:
         results = f"Error {e.__dict__}"
         print(results)
-    finally:
-        print_result.append(f"{results.stdout.decode('utf-8')}")
     return print_result
 
 

@@ -25,7 +25,7 @@ This script takes a number of images and saves individual image planes in a
 zip file for download, then exports it to SLURM.
 
 @author Torec Luik
-@version 0.0.1
+@version 0.0.2
 """
 
 import omero.scripts as scripts
@@ -34,24 +34,19 @@ import omero.util.script_utils as script_utils
 import omero
 from omero.rtypes import rstring, rlong, robject
 from omero.constants.namespaces import NSCREATED, NSOMETIFF
-import subprocess
 import os
 from pathlib import Path
-from typing import Union, List
+from typing import List
 import glob
 import zipfile
 from datetime import datetime
-
+from fabric import Connection, Result
+import configparser
 try:
     from PIL import Image  # see ticket:2597
 except ImportError:
     import Image
-    
-SSH_KEY = '~/.ssh/id_rsa'
-SLURM_REMOTE = 'luna.amc.nl'
-SLURM_USER = 'ttluik'
-SSH_HOSTS = '~/.ssh/known_hosts'
-SLURM_DATA_PATH = "/home/sandbox/ttluik/my-scratch/data/"
+
 _PYCMD = "Python_Command"
 _DEFAULT_CMD = "import numpy as np; arr = np.array([1,2,3,4,5]); print(arr.mean())"
 _RUNPY = "Run_Python"
@@ -62,101 +57,132 @@ _SOTHER = "Run_Other_Command"
 _SCMD = "Linux_Command"
 _DEFAULT_SCMD = "ls -la"
 
-class SshClient():
-    """ Perform commands and copy files on ssh using subprocess 
-        and native ssh client (OpenSSH).
-        Based on https://gist.github.com/TorecLuik/aae824e081895707f0a82585d273164f
+
+class SlurmClient(Connection):
+    """A client for connecting to and interacting with a Slurm cluster over SSH.
+
+    This class extends the Fabric Connection class, adding methods and attributes specific to working with Slurm.
+    SlurmClient accepts the same arguments as Connection.
+
+    Attributes:
+
+    Example:
+        # Create a SlurmClient object as contextmanager
+
+        with SlurmClient() as client:
+
+            # Run a command on the remote host
+
+            result = client.run('sbatch myjob.sh')
+
+            # Check whether the command succeeded
+
+            if result.ok:
+                print('Job submitted successfully!')
+
+            # Print the output of the command
+
+            print(result.stdout)
+
+        # Create SlurmClient object from config
+
+        with SlurmClient.from_config() as client:
+
+            ...
     """
+    DEFAULT_CONFIG_PATH_1 = "/etc/slurm-config.ini"
+    DEFAULT_CONFIG_PATH_2 = "~/slurm-config.ini"
+    DEFAULT_HOST = "slurm"
+    DEFAULT_INLINE_SSH_ENV = True
+    DEFAULT_SLURM_DATA_PATH = "$HOME/my-scratch/data/"
 
     def __init__(self,
-                 user: str,
-                 remote: str,
-                 key_path: Union[str, Path],
-                 known_hosts: str = "/dev/null") -> None:
-        """
+                 host=DEFAULT_HOST,
+                 user=None,
+                 port=None,
+                 config=None,
+                 gateway=None,
+                 forward_agent=None,
+                 connect_timeout=None,
+                 connect_kwargs=None,
+                 inline_ssh_env=DEFAULT_INLINE_SSH_ENV,
+                 slurm_data_path: Path = Path(DEFAULT_SLURM_DATA_PATH)):
+        super(SlurmClient, self).__init__(host,
+                                          user,
+                                          port,
+                                          config,
+                                          gateway,
+                                          forward_agent,
+                                          connect_timeout,
+                                          connect_kwargs,
+                                          inline_ssh_env)
+        self.slurm_data_path = slurm_data_path
+
+    @classmethod
+    def from_config(cls, configfile: str = '') -> 'SlurmClient':
+        """Creates a new SlurmClient object using the parameters read from a configuration file (.ini).
+
+        Defaults paths to look for config files are:
+            - /etc/slurm-config.ini
+            - ~/slurm-config.ini
+
+        Note that this is only for the SLURM specific values that we added.
+        Most configuration values are set via configuration mechanisms from Fabric library,
+        like SSH settings being loaded from SSH config, /etc/fabric.yml or environment variables.
+        See Fabric's documentation for more info on configuration if needed.
 
         Args:
-            user (str): username for the remote
-            remote (str): remote host IP/DNS
-            key_path (str or pathlib.Path): path to .pem file
-            known_hosts (str, optional): path to known_hosts file
+            configfile (str): The path to your configuration file. Optional.
+
+        Returns:
+            SlurmClient: A new SlurmClient object.
         """
-        self.user = user
-        self.remote = remote
-        self.key_path = str(key_path)
-        self.known_hosts = known_hosts
-
-    def cmd(self,
-            cmds: List[str],
-            check=True,
-            strict_host_key_checking=True,
-            **run_kwargs) -> subprocess.CompletedProcess:
-        """runs commands consecutively, ensuring success of each
-            after calling the next command.
-
-        Args:
-            cmds (list[str]): list of commands to run.
-            strict_host_key_checking (bool, optional): Defaults to True.
-        """
-
-        # strict_host_key_checking = 'yes' if strict_host_key_checking else 'no'
-        strict_host_key_checking = 'no'
-        cmd = ' && '.join(cmds)
-        print(f"CMD: {cmd} || extra args: {run_kwargs}")
-        return subprocess.run(
-            [
-                'ssh',
-                '-i', self.key_path,
-                '-o', f'StrictHostKeyChecking={strict_host_key_checking}',
-                '-o', f'UserKnownHostsFile={self.known_hosts}',
-                # '-o', 'LogLevel=DEBUG',
-                f'{self.user}@{self.remote}',
-                cmd
-            ],
-            check=check,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            **run_kwargs
-        )
-
-    def scp(self,
-            sources: List[Union[str, bytes, os.PathLike]],
-            destination: Union[str, bytes, os.PathLike],
-            check=True,
-            strict_host_key_checking=False,
-            recursive=False,
-            **run_kwargs) -> subprocess.CompletedProcess:
-        """Copies `srouce` file to remote `destination` using the 
-            native `scp` command.
-
-        Args:
-            source (Union[str, bytes, os.PathLike]): List of source files path.
-            destination (Union[str, bytes, os.PathLike]): Destination path on remote.
-        """
-
-        strict_host_key_checking = 'yes' if strict_host_key_checking else 'no'
-
-        return subprocess.run(
-            list(filter(bool, [
-                'scp',
-                '-i', self.key_path,
-                '-o', f'StrictHostKeyChecking={strict_host_key_checking}',
-                '-o', 'UserKnownHostsFile=/dev/null',
-                '-o', 'LogLevel=ERROR',
-                '-r' if recursive else '',
-                *map(str, sources),
-                # sources,
-                f'{self.user}@{self.remote}:{str(destination)}',
-            ])),
-            check=check,
-            **run_kwargs
-        )
+        # Load the configuration file
+        configs = configparser.ConfigParser(allow_no_value=True)
+        # Loads from default locations and given location, missing files are ok
+        configs.read([cls.DEFAULT_CONFIG_PATH_1,
+                     cls.DEFAULT_CONFIG_PATH_2, configfile])
+        # Read the required parameters from the configuration file, fallback to defaults
+        host = configs.get("SSH", "host", fallback=cls.DEFAULT_HOST)
+        inline_ssh_env = configs.getboolean(
+            "SSH", "inline_ssh_env", fallback=cls.DEFAULT_INLINE_SSH_ENV)
+        slurm_data_path = Path(configs.get(
+            "SLURM", "slurm_data_path", fallback=cls.DEFAULT_SLURM_DATA_PATH))
+        # Create the SlurmClient object with the parameters read from the config file
+        return cls(host=host, inline_ssh_env=inline_ssh_env, slurm_data_path=slurm_data_path)
 
     def validate(self):
-        return self.cmd([f'echo " "'], check=False).returncode == 0
+        """Validate the connection to the Slurm cluster by running a simple command.
 
-    def ssh_connect_cmd(self) -> str:
-        return f'ssh -i {self.key_path} {self.user}@{self.remote}'
+        Returns:
+            bool: True if the command is executed successfully, False otherwise.
+        """
+        return self.run('echo " "').ok
+
+    def runCommands(self, cmdlist: List[str]) -> Result:
+        """Runs a list of shell commands consecutively, ensuring success of each before calling the next.
+
+        Args:
+            cmdlist (List[str]): A list of shell commands to run.
+
+        Returns:
+            Result: The result of the last command in the list.
+        """
+        cmd = ' && '.join(cmdlist)
+        print(f"Running commands: {cmd}")
+        return self.run(cmd)
+
+    def transfer_data(self, local_path: Path) -> Result:
+        """Transfers a file or directory from the local machine to the remote Slurm cluster.
+
+        Args:
+            local_path (Path): The local path to the file or directory to transfer.
+
+        Returns:
+            Result: The result of the file transfer operation.
+        """
+        return self.put(local=str(local_path), remote=self.slurm_data_path)
+
 
 # keep track of log strings.
 log_strings = []
@@ -380,7 +406,7 @@ def save_planes_for_image(conn, image, size_c, split_cs, merged_cs,
                                c, g_scale, zoom_percent, folder_name)
 
 
-def batch_image_export(conn, script_params, slurmClient):
+def batch_image_export(conn, script_params, slurmClient: SlurmClient):
 
     # for params with default values, we can get the value directly
     split_cs = script_params["Export_Individual_Channels"]
@@ -588,16 +614,14 @@ def batch_image_export(conn, script_params, slurmClient):
         mimetype = 'application/zip'
         output_display_name = f"Batch export zip '{folder_name}'"
         namespace = NSCREATED + "/omero/export_scripts/Batch_Image_Export"
-        
+
     # Copy to SLURM
     try:
-        slurmClient.scp(sources=[export_file], 
-                        destination=SLURM_DATA_PATH
-                        )
+        r = slurmClient.transfer_data(export_file)
+        print(r)
         message += f"'{folder_name}' succesfully copied to SLURM!\n"
     except Exception as e:
         message += f"Copying to SLURM failed: {e}\n"
-    
 
     file_annotation, ann_message = script_utils.create_link_file_annotation(
         conn, export_file, parent, output=output_display_name,
@@ -611,151 +635,149 @@ def run_script():
     The main entry point of the script, as called by the client via the
     scripting service, passing the required parameters.
     """
-    
-    slurmClient = SshClient(user=SLURM_USER,
-                            remote=SLURM_REMOTE,
-                            key_path=SSH_KEY,
-                            known_hosts=SSH_HOSTS)
 
-    data_types = [rstring('Dataset'), rstring('Image')]
-    formats = [rstring('JPEG'), rstring('PNG'), rstring('TIFF'),
-               rstring('OME-TIFF')]
-    default_z_option = 'Default-Z (last-viewed)'
-    z_choices = [rstring(default_z_option),
-                 rstring('ALL Z planes'),
-                 # currently ImageWrapper only allows full Z-stack projection
-                 rstring('Max projection'),
-                 rstring('Other (see below)')]
-    default_t_option = 'Default-T (last-viewed)'
-    t_choices = [rstring(default_t_option),
-                 rstring('ALL T planes'),
-                 rstring('Other (see below)')]
-    zoom_percents = omero.rtypes.wrap(["25%", "50%", "100%", "200%",
-                                      "300%", "400%"])
+    with SlurmClient.from_config() as slurmClient:
 
-    client = scripts.client(
-        '_SLURM_Image_Transfer',
-        f"""Save multiple images as TIFF
-        in a zip file and export them to SLURM.
-        Also attaches the zip as a downloadable file in OMERO.
-        
-        This runs a script remotely on: {SLURM_REMOTE}
-        Connection ready? {slurmClient.validate()}""",
+        data_types = [rstring('Dataset'), rstring('Image')]
+        formats = [rstring('JPEG'), rstring('PNG'), rstring('TIFF'),
+                   rstring('OME-TIFF')]
+        default_z_option = 'Default-Z (last-viewed)'
+        z_choices = [rstring(default_z_option),
+                     rstring('ALL Z planes'),
+                     # currently ImageWrapper only allows full Z-stack projection
+                     rstring('Max projection'),
+                     rstring('Other (see below)')]
+        default_t_option = 'Default-T (last-viewed)'
+        t_choices = [rstring(default_t_option),
+                     rstring('ALL T planes'),
+                     rstring('Other (see below)')]
+        zoom_percents = omero.rtypes.wrap(["25%", "50%", "100%", "200%",
+                                           "300%", "400%"])
 
-        scripts.String(
-            "Data_Type", optional=False, grouping="1",
-            description="The data you want to work with.", values=data_types,
-            default="Image"),
+        client = scripts.client(
+            '_SLURM_Image_Transfer',
+            f"""Save multiple images as TIFF
+            in a zip file and export them to SLURM.
+            Also attaches the zip as a downloadable file in OMERO.
+            
+            This runs a script remotely on your SLURM cluster.
+            Connection ready? {slurmClient.validate()}""",
 
-        scripts.List(
-            "IDs", optional=False, grouping="2",
-            description="List of Dataset IDs or Image IDs").ofType(rlong(0)),
+            scripts.String(
+                "Data_Type", optional=False, grouping="1",
+                description="The data you want to work with.", values=data_types,
+                default="Image"),
 
-        scripts.Bool(
-            "Image settings (Optional)", grouping="5",
-            description="Settings for how to export your images",
-            default=True
+            scripts.List(
+                "IDs", optional=False, grouping="2",
+                description="List of Dataset IDs or Image IDs").ofType(rlong(0)),
+
+            scripts.Bool(
+                "Image settings (Optional)", grouping="5",
+                description="Settings for how to export your images",
+                default=True
             ),
-        
-        scripts.Bool(
-            "Export_Individual_Channels", grouping="5.6",
-            description="Save individual channels as separate images",
-            default=False),
 
-        scripts.Bool(
-            "Individual_Channels_Grey", grouping="5.6.1",
-            description="If true, all individual channel images will be"
-            " grayscale", default=False),
+            scripts.Bool(
+                "Export_Individual_Channels", grouping="5.6",
+                description="Save individual channels as separate images",
+                default=False),
 
-        scripts.List(
-            "Channel_Names", grouping="5.6.2",
-            description="Names for saving individual channel images"),
+            scripts.Bool(
+                "Individual_Channels_Grey", grouping="5.6.1",
+                description="If true, all individual channel images will be"
+                " grayscale", default=False),
 
-        scripts.Bool(
-            "Export_Merged_Image", grouping="5.5",
-            description="Save merged image, using current rendering settings",
-            default=True),
+            scripts.List(
+                "Channel_Names", grouping="5.6.2",
+                description="Names for saving individual channel images"),
 
-        scripts.String(
-            "Choose_Z_Section", grouping="5.7",
-            description="Default Z is last viewed Z for each image, OR choose"
-            " Z below.", values=z_choices, default=default_z_option),
+            scripts.Bool(
+                "Export_Merged_Image", grouping="5.5",
+                description="Save merged image, using current rendering settings",
+                default=True),
 
-        scripts.Int(
-            "OR_specify_Z_index", grouping="5.7.1",
-            description="Choose a specific Z-index to export", min=1),
+            scripts.String(
+                "Choose_Z_Section", grouping="5.7",
+                description="Default Z is last viewed Z for each image, OR choose"
+                " Z below.", values=z_choices, default=default_z_option),
 
-        scripts.Int(
-            "OR_specify_Z_start_AND...", grouping="5.7.2",
-            description="Choose a specific Z-index to export", min=1),
+            scripts.Int(
+                "OR_specify_Z_index", grouping="5.7.1",
+                description="Choose a specific Z-index to export", min=1),
 
-        scripts.Int(
-            "...specify_Z_end", grouping="5.7.3",
-            description="Choose a specific Z-index to export", min=1),
+            scripts.Int(
+                "OR_specify_Z_start_AND...", grouping="5.7.2",
+                description="Choose a specific Z-index to export", min=1),
 
-        scripts.String(
-            "Choose_T_Section", grouping="5.8",
-            description="Default T is last viewed T for each image, OR choose"
-            " T below.", values=t_choices, default=default_t_option),
+            scripts.Int(
+                "...specify_Z_end", grouping="5.7.3",
+                description="Choose a specific Z-index to export", min=1),
 
-        scripts.Int(
-            "OR_specify_T_index", grouping="5.8.1",
-            description="Choose a specific T-index to export", min=1),
+            scripts.String(
+                "Choose_T_Section", grouping="5.8",
+                description="Default T is last viewed T for each image, OR choose"
+                " T below.", values=t_choices, default=default_t_option),
 
-        scripts.Int(
-            "OR_specify_T_start_AND...", grouping="5.8.2",
-            description="Choose a specific T-index to export", min=1),
+            scripts.Int(
+                "OR_specify_T_index", grouping="5.8.1",
+                description="Choose a specific T-index to export", min=1),
 
-        scripts.Int(
-            "...specify_T_end", grouping="5.8.3",
-            description="Choose a specific T-index to export", min=1),
+            scripts.Int(
+                "OR_specify_T_start_AND...", grouping="5.8.2",
+                description="Choose a specific T-index to export", min=1),
 
-        scripts.String(
-            "Zoom", grouping="5.9", values=zoom_percents,
-            description="Zoom (jpeg, png or tiff) before saving with"
-            " ANTIALIAS interpolation", default="100%"),
+            scripts.Int(
+                "...specify_T_end", grouping="5.8.3",
+                description="Choose a specific T-index to export", min=1),
 
-        scripts.String(
-            "Format", grouping="5.1",
-            description="Format to save image", values=formats,
-            default='TIFF'),
+            scripts.String(
+                "Zoom", grouping="5.9", values=zoom_percents,
+                description="Zoom (jpeg, png or tiff) before saving with"
+                " ANTIALIAS interpolation", default="100%"),
 
-        scripts.String(
-            "Folder_Name", grouping="3",
-            description="Name of folder (and zip file) to store images",
-            default='SLURM_IMAGES_'),
+            scripts.String(
+                "Format", grouping="5.1",
+                description="Format to save image", values=formats,
+                default='TIFF'),
 
-        version="0.0.2",
-        authors=["Torec Luik", "William Moore", "OME Team"],
-        institutions=["Amsterdam UMC", "University of Dundee"],
-        contact="t.t.luik@amsterdamumc.nl",
-        authorsInstitutions=[[1], [2]]
-    )
+            scripts.String(
+                "Folder_Name", grouping="3",
+                description="Name of folder (and zip file) to store images",
+                default='SLURM_IMAGES_'),
 
-    try:
-        start_time = datetime.now()
-        script_params = {}
+            version="0.0.3",
+            authors=["Torec Luik", "William Moore", "OME Team"],
+            institutions=["Amsterdam UMC", "University of Dundee"],
+            contact="t.t.luik@amsterdamumc.nl",
+            authorsInstitutions=[[1], [2]]
+        )
 
-        conn = BlitzGateway(client_obj=client)
+        try:
+            start_time = datetime.now()
+            script_params = {}
 
-        script_params = client.getInputs(unwrap=True)
-        for key, value in script_params.items():
-            log("%s:%s" % (key, value))
+            conn = BlitzGateway(client_obj=client)
 
-        # call the main script - returns a file annotation wrapper
-        file_annotation, message = batch_image_export(conn, script_params, slurmClient)
+            script_params = client.getInputs(unwrap=True)
+            for key, value in script_params.items():
+                log("%s:%s" % (key, value))
 
-        stop_time = datetime.now()
-        log("Duration: %s" % str(stop_time-start_time))
+            # call the main script - returns a file annotation wrapper
+            file_annotation, message = batch_image_export(
+                conn, script_params, slurmClient)
 
-        # return this fileAnnotation to the client.
-        client.setOutput("Message", rstring(message))
-        if file_annotation is not None:
-            client.setOutput("File_Annotation",
-                             robject(file_annotation._obj))
+            stop_time = datetime.now()
+            log("Duration: %s" % str(stop_time-start_time))
 
-    finally:
-        client.closeSession()
+            # return this fileAnnotation to the client.
+            client.setOutput("Message", rstring(message))
+            if file_annotation is not None:
+                client.setOutput("File_Annotation",
+                                 robject(file_annotation._obj))
+
+        finally:
+            client.closeSession()
 
 
 if __name__ == "__main__":

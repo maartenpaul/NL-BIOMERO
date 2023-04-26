@@ -296,14 +296,13 @@ def call_slurm(slurmClient, cmdlist):
             check=True,
             strict_host_key_checking=False)
         print(f"Ran slurm {results.__dict__}")
-    except subprocess.CalledProcessError as e:
-        results = f"Error {e.__dict__}"
-        print(results)
-    finally:
         try:
             print_result.append(f"{results.stdout.decode('utf-8')}")
         except Exception:
             print_result.append(f"{results.stderr.decode('utf-8')}")
+    except subprocess.CalledProcessError as e:
+        results = f"Error {e.__dict__}"
+        print(results)
     return print_result
 
 

@@ -214,32 +214,38 @@ def saveCPImageToOmero(img, masks, flows, image, name, conn):
     return image, file_ann
 
 
-def call_slurm(slurmClient, scriptParams, cmdlist):
-    # print(f"Validating slurm connection:\
-    #           {slurmClient.validate()} for {slurmClient.__dict__}")
+def call_slurm(slurmClient, cmdlist):
+    """Easier function to provide list of commandline orders to SLURM server.
+
+    Args:
+        slurmClient (SshClient): SLURM SshClient
+        cmdlist (List): List of commands to execute on SLURM
+
+    Returns:
+        String: Message describing results
+    """
     print_result = []
     try:
         # run a list of commands
         results = slurmClient.cmd(
-                cmdlist,
-                check=True,
-                strict_host_key_checking=False)
+            cmdlist,
+            check=True,
+            strict_host_key_checking=False)
         print(f"Ran slurm {results.__dict__}")
-    except subprocess.CalledProcessError as e:
-        results = f"Error {e.__dict__}"
-        print(results)
-    finally:
         try:
             print_result.append(f"{results.stdout.decode('utf-8')}")
         except Exception:
             print_result.append(f"{results.stderr.decode('utf-8')}")
+    except subprocess.CalledProcessError as e:
+        results = f"Error {e.__dict__}"
+        print(results)
     return print_result
 
 
 def getRunningJobs(slurmClient):
     if slurmClient.validate():
         cmdlist = [_QUEUE_COMMAND]
-        slurm_response = call_slurm(slurmClient, [], cmdlist)
+        slurm_response = call_slurm(slurmClient, cmdlist)
         responselist = slurm_response[0].strip().split('\n')
         return responselist
     else: 
@@ -249,7 +255,7 @@ def getRunningJobs(slurmClient):
 def getOldJobs(slurmClient):
     if slurmClient.validate():
         cmdlist = [_ACCT_COMMAND]
-        slurm_response = call_slurm(slurmClient, [], cmdlist)
+        slurm_response = call_slurm(slurmClient, cmdlist)
         responselist = slurm_response[0].strip().split('\n')
         responselist.reverse()  # newest on top
         return responselist
@@ -327,7 +333,7 @@ def runScript():
             try:
                 cmdlist = []
                 cmdlist.append(f"scontrol show job {slurm_job_id}")
-                print_job = call_slurm(slurmClient, [], cmdlist)
+                print_job = call_slurm(slurmClient, cmdlist)
                 print(print_job[0])
                 job_state = re.search('JobState=(\w+) Reason=(\w+)', print_job[0]).group()
                 message += f"\n{job_state}"
@@ -337,7 +343,7 @@ def runScript():
             try:
                 cmdlist = []
                 cmdlist.append(f"sacct -n -o JobId,State,End -X -j {slurm_job_id_old}")
-                print_job = call_slurm(slurmClient, [], cmdlist)
+                print_job = call_slurm(slurmClient, cmdlist)
                 print(print_job[0])
                 message += f"\n{print_job[0]}"
             except Exception as e:
@@ -349,7 +355,7 @@ def runScript():
                 cmdlist = []
                 update_cmd = f"tail -n 10 cellpose-{slurm_job_id}.log"
                 cmdlist.append(update_cmd)
-                print_result = call_slurm(slurmClient, scriptParams, cmdlist) # ... Submitted batch job 73547
+                print_result = call_slurm(slurmClient, cmdlist) # ... Submitted batch job 73547
                 print_result = "".join(print_result)
                 print(print_result.encode('utf-8'))
                 progress_percentage = re.findall(b'\d+%', print_result.encode('utf-8'))[-1]
