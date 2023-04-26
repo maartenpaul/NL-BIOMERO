@@ -65,7 +65,7 @@ class SlurmClient(Connection):
     DEFAULT_CONFIG_PATH_2 = "~/slurm-config.ini"
     DEFAULT_HOST = "slurm"
     DEFAULT_INLINE_SSH_ENV = True
-    DEFAULT_SLURM_DATA_PATH = "$HOME/my-scratch/data/"
+    DEFAULT_SLURM_DATA_PATH = "my-scratch/data/"
 
     def __init__(self,
                  host=DEFAULT_HOST,
@@ -152,7 +152,8 @@ class SlurmClient(Connection):
         Returns:
             Result: The result of the file transfer operation.
         """
-        return self.put(local=str(local_path), remote=self.slurm_data_path)
+        print(f"Transfering file {str(local_path)} to {str(self.slurm_data_path)}")
+        return self.put(local=str(local_path), remote=str(self.slurm_data_path))
 
 
 def runScript():
