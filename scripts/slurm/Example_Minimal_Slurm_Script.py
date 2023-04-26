@@ -33,14 +33,19 @@ class SlurmClient(Connection):
     """A client for connecting to and interacting with a Slurm cluster over SSH.
 
     This class extends the Fabric Connection class, adding methods and attributes specific to working with Slurm.
-    SlurmClient accepts the same arguments as Connection.
+
+    SlurmClient accepts the same arguments as Connection. So below only mentions the added ones:
 
     Attributes:
+        slurm_data_path (str): The path to the directory containing the data files for Slurm jobs.
+        slurm_images_path (str): The path to the directory containing the Singularity images for Slurm jobs.
+        slurm_model_paths (dict): A dictionary containing the paths to the Singularity images for specific Slurm job models.
+
 
     Example:
         # Create a SlurmClient object as contextmanager
 
-        with SlurmClient() as client:
+        with SlurmClient.from_config() as client:
 
             # Run a command on the remote host
 
@@ -55,20 +60,20 @@ class SlurmClient(Connection):
 
             print(result.stdout)
 
-        # Create SlurmClient object from config
-
-        with SlurmClient.from_config() as client:
-
-            ...
     """
-    DEFAULT_CONFIG_PATH_1 = "/etc/slurm-config.ini"
-    DEFAULT_CONFIG_PATH_2 = "~/slurm-config.ini"
-    DEFAULT_HOST = "slurm"
-    DEFAULT_INLINE_SSH_ENV = True
-    DEFAULT_SLURM_DATA_PATH = "my-scratch/data/"
+    _DEFAULT_CONFIG_PATH_1 = "/etc/slurm-config.ini"
+    _DEFAULT_CONFIG_PATH_2 = "~/slurm-config.ini"
+    _DEFAULT_HOST = "slurm"
+    _DEFAULT_INLINE_SSH_ENV = True
+    _DEFAULT_SLURM_DATA_PATH = "my-scratch/data/"
+    _DEFAULT_SLURM_IMAGES_PATH = "my-scratch/singularity_images/workflows/"
+    _GIT_DIR_SCRIPT = "slurm-scripts/"
+    _OUT_SEP = "--split--"
+    _VERSION_CMD = "ls -h {slurm_images_path}{image_path} | grep -oP '(?<=-)v.+(?=.simg)'"
+    _DATA_CMD = "ls -h {slurm_data_path} | grep -oP '.+(?=.zip)'"
 
     def __init__(self,
-                 host=DEFAULT_HOST,
+                 host=_DEFAULT_HOST,
                  user=None,
                  port=None,
                  config=None,
@@ -76,8 +81,11 @@ class SlurmClient(Connection):
                  forward_agent=None,
                  connect_timeout=None,
                  connect_kwargs=None,
-                 inline_ssh_env=DEFAULT_INLINE_SSH_ENV,
-                 slurm_data_path: Path = Path(DEFAULT_SLURM_DATA_PATH)):
+                 inline_ssh_env=_DEFAULT_INLINE_SSH_ENV,
+                 slurm_data_path: str = _DEFAULT_SLURM_DATA_PATH,
+                 slurm_images_path: str = _DEFAULT_SLURM_IMAGES_PATH,
+                 slurm_model_paths: dict = None
+                 ):
         super(SlurmClient, self).__init__(host,
                                           user,
                                           port,
@@ -88,6 +96,8 @@ class SlurmClient(Connection):
                                           connect_kwargs,
                                           inline_ssh_env)
         self.slurm_data_path = slurm_data_path
+        self.slurm_images_path = slurm_images_path
+        self.slurm_model_paths = slurm_model_paths
 
     @classmethod
     def from_config(cls, configfile: str = '') -> 'SlurmClient':
@@ -111,16 +121,23 @@ class SlurmClient(Connection):
         # Load the configuration file
         configs = configparser.ConfigParser(allow_no_value=True)
         # Loads from default locations and given location, missing files are ok
-        configs.read([cls.DEFAULT_CONFIG_PATH_1,
-                     cls.DEFAULT_CONFIG_PATH_2, configfile])
+        configs.read([cls._DEFAULT_CONFIG_PATH_1,
+                     cls._DEFAULT_CONFIG_PATH_2, configfile])
         # Read the required parameters from the configuration file, fallback to defaults
-        host = configs.get("SSH", "host", fallback=cls.DEFAULT_HOST)
+        host = configs.get("SSH", "host", fallback=cls._DEFAULT_HOST)
         inline_ssh_env = configs.getboolean(
-            "SSH", "inline_ssh_env", fallback=cls.DEFAULT_INLINE_SSH_ENV)
-        slurm_data_path = Path(configs.get(
-            "SLURM", "slurm_data_path", fallback=cls.DEFAULT_SLURM_DATA_PATH))
+            "SSH", "inline_ssh_env", fallback=cls._DEFAULT_INLINE_SSH_ENV)
+        slurm_data_path = configs.get(
+            "SLURM", "slurm_data_path", fallback=cls._DEFAULT_SLURM_DATA_PATH)
+        slurm_images_path = configs.get(
+            "SLURM", "slurm_images_path", fallback=cls._DEFAULT_SLURM_IMAGES_PATH)
+        slurm_model_paths = dict(configs.items("MODELS"))
         # Create the SlurmClient object with the parameters read from the config file
-        return cls(host=host, inline_ssh_env=inline_ssh_env, slurm_data_path=slurm_data_path)
+        return cls(host=host,
+                   inline_ssh_env=inline_ssh_env,
+                   slurm_data_path=slurm_data_path,
+                   slurm_images_path=slurm_images_path,
+                   slurm_model_paths=slurm_model_paths)
 
     def validate(self):
         """Validate the connection to the Slurm cluster by running a simple command.
@@ -130,30 +147,88 @@ class SlurmClient(Connection):
         """
         return self.run('echo " "').ok
 
-    def runCommands(self, cmdlist: List[str]) -> Result:
+    def run_commands(self, cmdlist: List[str], sep=' && ') -> Result:
         """Runs a list of shell commands consecutively, ensuring success of each before calling the next.
+
+        These commands retain the same session (env vars etc.), unlike running them separately.
+
+        Args:
+            cmdlist (List[str]): A list of shell commands to run on SLURM
+
+        Returns:
+            Result: The result of the last command in the list.
+        """
+        cmd = sep.join(cmdlist)
+        print(f"Running commands, with sep {sep}: {cmd}")
+        return self.run(cmd)
+
+    def run_commands_split_out(self, cmdlist: List[str]) -> List[str]:
+        """Runs a list of shell commands consecutively and splits the output of each command.
+
+        Each command in the list is executed with a separator in between that is unique and can be used to split
+        the output of each command later. The separator used is specified by the `_OUT_SEP` attribute of the
+        SlurmClient instance.
 
         Args:
             cmdlist (List[str]): A list of shell commands to run.
 
         Returns:
-            Result: The result of the last command in the list.
+            List[str]: A list of strings, where each string corresponds to the output of a single command
+                    in `cmdlist` split by the separator `_OUT_SEP`.
+        Raises:
+            SSHException: If any of the commands fail to execute successfully.
         """
-        cmd = ' && '.join(cmdlist)
-        print(f"Running commands: {cmd}")
-        return self.run(cmd)
+        result = self.run_commands(cmdlist=cmdlist,
+                                   sep=f" && echo {self._OUT_SEP} && ")
+        if result.ok:
+            response = result.stdout
+            split_responses = response.split(self._OUT_SEP)
+            return split_responses
+        else:
+            error = f"Result is not ok: {result}"
+            print(error)
+            raise SSHException(error)
 
-    def transfer_data(self, local_path: Path) -> Result:
+    def transfer_data(self, local_path: str) -> Result:
         """Transfers a file or directory from the local machine to the remote Slurm cluster.
 
         Args:
-            local_path (Path): The local path to the file or directory to transfer.
+            local_path (str): The local path to the file or directory to transfer.
 
         Returns:
             Result: The result of the file transfer operation.
         """
-        print(f"Transfering file {str(local_path)} to {str(self.slurm_data_path)}")
-        return self.put(local=str(local_path), remote=str(self.slurm_data_path))
+        print(
+            f"Transfering file {local_path} to {self.slurm_data_path}")
+        return self.put(local=local_path, remote=self.slurm_data_path)
+
+    def get_image_versions_and_data_files(self, model: str) -> List[List[str]]:
+        """
+        Gets the available image versions and (input) data files for a given model.
+
+        Args:
+            model (str): The name of the model to query for.
+
+        Returns:
+            List[List[str]]: A list of 2 lists, the first containing the available image versions
+            and the second containing the available data files.
+        Raises:
+            ValueError: If the provided model is not found in the SlurmClient's known model paths.
+        """
+        try:
+            image_path = self.slurm_model_paths.get(model)
+        except KeyError:
+            raise ValueError(
+                f"No path known for provided model {model}, in {self.slurm_model_paths}")
+        cmdlist = [self._VERSION_CMD.format(slurm_images_path=self.slurm_images_path,
+                                            image_path=image_path),
+                   self._DATA_CMD.format(slurm_data_path=self.slurm_data_path)]
+        # split responses per command
+        response_list = self.run_commands_split_out(cmdlist)
+        # split lines further into sublists
+        response_list = [response.strip().split('\n')
+                         for response in response_list]
+        return response_list[0], response_list[1]
 
 
 def runScript():

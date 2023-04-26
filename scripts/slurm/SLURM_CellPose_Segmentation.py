@@ -40,14 +40,19 @@ class SlurmClient(Connection):
     """A client for connecting to and interacting with a Slurm cluster over SSH.
 
     This class extends the Fabric Connection class, adding methods and attributes specific to working with Slurm.
-    SlurmClient accepts the same arguments as Connection.
+
+    SlurmClient accepts the same arguments as Connection. So below only mentions the added ones:
 
     Attributes:
+        slurm_data_path (str): The path to the directory containing the data files for Slurm jobs.
+        slurm_images_path (str): The path to the directory containing the Singularity images for Slurm jobs.
+        slurm_model_paths (dict): A dictionary containing the paths to the Singularity images for specific Slurm job models.
+
 
     Example:
         # Create a SlurmClient object as contextmanager
 
-        with SlurmClient() as client:
+        with SlurmClient.from_config() as client:
 
             # Run a command on the remote host
 
@@ -62,11 +67,6 @@ class SlurmClient(Connection):
 
             print(result.stdout)
 
-        # Create SlurmClient object from config
-
-        with SlurmClient.from_config() as client:
-
-            ...
     """
     _DEFAULT_CONFIG_PATH_1 = "/etc/slurm-config.ini"
     _DEFAULT_CONFIG_PATH_2 = "~/slurm-config.ini"
@@ -263,7 +263,8 @@ def runScript():
         params.institutions = ["Amsterdam UMC"]
         params.authorsInstitutions = [[1]]
 
-        _versions, _datafiles = slurmClient.get_image_versions_and_data_files('cellpose')
+        _versions, _datafiles = slurmClient.get_image_versions_and_data_files(
+            'cellpose')
         input_list = [
             omscripts.Bool("CellPose", grouping="04", default=True),
             omscripts.String(_PARAM_MODEL, optional=False, grouping="04.3",
