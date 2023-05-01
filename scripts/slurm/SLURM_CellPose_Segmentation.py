@@ -13,7 +13,7 @@ import omero
 from omero.grid import JobParams
 from omero.rtypes import rstring, unwrap
 import omero.scripts as omscripts
-from typing import List
+from typing import Dict, List, Optional, Tuple
 import re
 from fabric import Connection, Result
 from paramiko import SSHException
@@ -70,7 +70,7 @@ class SlurmClient(Connection):
     _DEFAULT_INLINE_SSH_ENV = True
     _DEFAULT_SLURM_DATA_PATH = "my-scratch/data/"
     _DEFAULT_SLURM_IMAGES_PATH = "my-scratch/singularity_images/workflows/"
-    _GIT_DIR_SCRIPT = "slurm-scripts/"
+    _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts/"
     _OUT_SEP = "--split--"
     _VERSION_CMD = "ls -h {slurm_images_path}{image_path} | grep -oP '(?<=-)v.+(?=.simg)'"
     _DATA_CMD = "ls -h {slurm_data_path} | grep -oP '.+(?=.zip)'"
@@ -87,7 +87,8 @@ class SlurmClient(Connection):
                  inline_ssh_env=_DEFAULT_INLINE_SSH_ENV,
                  slurm_data_path: str = _DEFAULT_SLURM_DATA_PATH,
                  slurm_images_path: str = _DEFAULT_SLURM_IMAGES_PATH,
-                 slurm_model_paths: dict = None
+                 slurm_model_paths: dict = None,
+                 slurm_script_path: str = _DEFAULT_SLURM_GIT_SCRIPT_PATH
                  ):
         super(SlurmClient, self).__init__(host,
                                           user,
@@ -101,6 +102,8 @@ class SlurmClient(Connection):
         self.slurm_data_path = slurm_data_path
         self.slurm_images_path = slurm_images_path
         self.slurm_model_paths = slurm_model_paths
+        self.slurm_script_path = slurm_script_path
+        # TODO: setup the script path by downloading from GIT? setup all the directories?
 
     @classmethod
     def from_config(cls, configfile: str = '') -> 'SlurmClient':
@@ -135,12 +138,15 @@ class SlurmClient(Connection):
         slurm_images_path = configs.get(
             "SLURM", "slurm_images_path", fallback=cls._DEFAULT_SLURM_IMAGES_PATH)
         slurm_model_paths = dict(configs.items("MODELS"))
+        slurm_script_path = configs.get(
+            "SLURM", "slurm_script_path", fallback=cls._DEFAULT_SLURM_GIT_SCRIPT_PATH)
         # Create the SlurmClient object with the parameters read from the config file
         return cls(host=host,
                    inline_ssh_env=inline_ssh_env,
                    slurm_data_path=slurm_data_path,
                    slurm_images_path=slurm_images_path,
-                   slurm_model_paths=slurm_model_paths)
+                   slurm_model_paths=slurm_model_paths,
+                   slurm_script_path=slurm_script_path)
 
     def validate(self):
         """Validate the connection to the Slurm cluster by running a simple command.
@@ -150,22 +156,28 @@ class SlurmClient(Connection):
         """
         return self.run('echo " "').ok
 
-    def run_commands(self, cmdlist: List[str], sep=' && ') -> Result:
-        """Runs a list of shell commands consecutively, ensuring success of each before calling the next.
+    def run_commands(self, cmdlist: List[str], env: Optional[Dict[str, str]] = None, sep: str = ' && ') -> Result:
+        """
+        Runs a list of shell commands consecutively, ensuring success of each before calling the next.
 
-        These commands retain the same session (env vars etc.), unlike running them separately.
+        The environment variables can be set using the `env` argument. These commands retain the same session (environment variables
+        etc.), unlike running them separately.
 
         Args:
-            cmdlist (List[str]): A list of shell commands to run on SLURM
+            cmdlist (List[str]): A list of shell commands to run on SLURM.
+            env (Optional[Dict[str, str]]): A dictionary of environment variables to be set for the commands (default: None).
+            sep (str): The separator used to concatenate the commands (default: ' && ').
 
         Returns:
             Result: The result of the last command in the list.
         """
+        if env is None:
+            env = {}
         cmd = sep.join(cmdlist)
-        print(f"Running commands, with sep {sep}: {cmd}")
-        return self.run(cmd)
+        print(f"Running commands, with env {env} and sep {sep}: {cmd}")
+        return self.run(cmd, env=env)
 
-    def run_commands_split_out(self, cmdlist: List[str]) -> List[str]:
+    def run_commands_split_out(self, cmdlist: List[str], env: Optional[Dict[str, str]] = None) -> List[str]:
         """Runs a list of shell commands consecutively and splits the output of each command.
 
         Each command in the list is executed with a separator in between that is unique and can be used to split
@@ -174,6 +186,7 @@ class SlurmClient(Connection):
 
         Args:
             cmdlist (List[str]): A list of shell commands to run.
+            env (Optional[Dict[str, str]]): A dictionary of environment variables to set when running the commands.
 
         Returns:
             List[str]: A list of strings, where each string corresponds to the output of a single command
@@ -182,6 +195,7 @@ class SlurmClient(Connection):
             SSHException: If any of the commands fail to execute successfully.
         """
         result = self.run_commands(cmdlist=cmdlist,
+                                   env=env,
                                    sep=f" && echo {self._OUT_SEP} && ")
         if result.ok:
             response = result.stdout
@@ -204,6 +218,65 @@ class SlurmClient(Connection):
         print(
             f"Transfering file {local_path} to {self.slurm_data_path}")
         return self.put(local=local_path, remote=self.slurm_data_path)
+
+    def get_update_slurm_scripts_command(self) -> str:
+        """Generates the command to update the Git repository containing the Slurm scripts, if necessary.
+
+        Returns:
+            str: A string containing the Git command to update the Slurm scripts.
+        """
+        update_cmd = f"git -C {self.slurm_script_path} pull"
+        return update_cmd
+
+    def get_cellpose_command(self, cellpose_version, zipfile, cp_model, nuc_channel, prob_threshold, cell_diameter, email, time) -> Tuple[str, dict]:
+        sbatch_env = {
+            "DATA_PATH": f"{self.slurm_data_path}/{zipfile}",
+            "IMAGE_PATH": f"{self.slurm_images_path}",
+            "IMAGE_VERSION": f"{cellpose_version}",
+        }
+        cellpose_env = {
+            "DIAMETER": f"{cell_diameter}",
+            "PROB_THRESHOLD": f"{prob_threshold}",
+            "NUC_CHANNEL": f"{nuc_channel}",
+            "CP_MODEL": f"{cp_model}",
+            "USE_GPU": "true",
+        }
+        env = {**sbatch_env, **cellpose_env}
+
+        email_param = "" if email is None or email == DEFAULT_MAIL else f" --mail-user={email}"
+        time_param = "" if time is None else f" --time={time}"
+        job_params = [time_param, email_param]
+        job_param = "".join(job_params)
+        sbatch_cmd = f"sbatch{job_param} {self.slurm_script_path}/jobs/cellpose.sh"
+
+        return sbatch_cmd, env
+
+    def get_unzip_command(self, zipfile: str, filter_filetypes: str = "*.tiff *.tif") -> str:
+        """
+        Generate a command string for unzipping a data archive and creating 
+        required directories for Slurm jobs.
+
+        Args:
+            zipfile (str): The name of the zip archive file to extract. Without extension.
+            filter_filetypes (str, optional): A space-separated string containing the file extensions to extract
+            from the zip file. The default value is "*.tiff *.tif".
+            Setting this argument to `None` or '*' will omit the file filter and extract all files.
+
+        Returns:
+            str: The command to extract the specified filetypes from the zip file.
+
+        """
+        if filter_filetypes is None:
+            filter_filetypes = '*'  # omit filter
+        unzip_cmd = f"mkdir {self.slurm_data_path}/{zipfile} \
+                    {self.slurm_data_path}/{zipfile}/data \
+                    {self.slurm_data_path}/{zipfile}/data/in \
+                    {self.slurm_data_path}/{zipfile}/data/out \
+                    {self.slurm_data_path}/{zipfile}/data/gt; \
+                    7z e -y -o{self.slurm_data_path}/{zipfile}/data/in \
+                    {self.slurm_data_path}/{zipfile}.zip {filter_filetypes}"
+
+        return unzip_cmd
 
     def get_image_versions_and_data_files(self, model: str) -> List[List[str]]:
         """
@@ -251,7 +324,7 @@ def runScript():
         https://hub.docker.com/r/torecluik/t_nucleisegmentation-cellpose
         
 
-        This runs a script remotely on the SLURM cluster.
+        This runs a script remotely on the Slurm cluster.
         Connection ready? {slurmClient.validate()}
         '''
         params.name = 'Slurm Cellpose Segmentation'
@@ -277,7 +350,7 @@ def runScript():
             omscripts.String("Folder_Name", grouping="05",
                              description=f"Name of folder where images are stored, as provided with {IMAGE_EXPORT_SCRIPT}",
                              values=_datafiles),
-            omscripts.Bool("SLURM Job Parameters",
+            omscripts.Bool("Slurm Job Parameters",
                            grouping="06", default=True),
             omscripts.String("Version", grouping="06.1",
                              description="Version of the Singularity Image of Cellpose",
@@ -311,39 +384,20 @@ def runScript():
             email = unwrap(client.getInput("E-mail"))
             time = unwrap(client.getInput("Duration"))
             cmdlist = []
-            # TODO move unzip command to SlurmClient
-            unzip_cmd = f"mkdir {BASE_DATA_PATH}/{zipfile} \
-                {BASE_DATA_PATH}/{zipfile}/data \
-                {BASE_DATA_PATH}/{zipfile}/data/in \
-                {BASE_DATA_PATH}/{zipfile}/data/out \
-                {BASE_DATA_PATH}/{zipfile}/data/gt; \
-                7z e -y -o{BASE_DATA_PATH}/{zipfile}/data/in \
-                {BASE_DATA_PATH}/{zipfile}.zip *.tiff *.tif"
+            unzip_cmd = slurmClient.get_unzip_command(zipfile)
             cmdlist.append(unzip_cmd)
-            # TODO move update command to SlurmClient
-            update_cmd = f"git -C {GIT_DIR_SCRIPT} pull"
+            update_cmd = slurmClient.get_update_slurm_scripts_command()
             cmdlist.append(update_cmd)
-            # TODO move sbatch command to SlurmClient
-            sbatch_cmd = f"export DATA_PATH={BASE_DATA_PATH}/{zipfile} ; \
-            export IMAGE_PATH={IMAGE_PATH} ; \
-            export IMAGE_VERSION={cellpose_version} ; \
-            export DIAMETER={cell_diameter} ; \
-            export PROB_THRESHOLD={prob_threshold} ; \
-            export NUC_CHANNEL={nuc_channel} ; \
-            export CP_MODEL={cp_model} ; \
-            export USE_GPU=true ;"
-            if email != DEFAULT_MAIL:
-                sbatch_cmd += f" sbatch --mail-user={email} --time={time} {GIT_DIR_SCRIPT}/jobs/cellpose.sh"
-            else:
-                sbatch_cmd += f" sbatch --time={time} {GIT_DIR_SCRIPT}/jobs/cellpose.sh"
+            sbatch_cmd, sbatch_env = slurmClient.get_cellpose_command(
+                cellpose_version, zipfile, cp_model, nuc_channel, prob_threshold, cell_diameter, email, time)
             cmdlist.append(sbatch_cmd)
             # ... Submitted batch job 73547
-            print_result = slurmClient.run_commands(cmdlist)
+            print_result = slurmClient.run_commands(cmdlist, sbatch_env)
             print_result = "".join(print_result.stdout)
             print(print_result)
             SLURM_JOB_ID = next((int(s.strip()) for s in print_result.split(
                 "Submitted batch job") if s.strip().isdigit()), -1)
-            print_result = f"Submitted to SLURM as batch job {SLURM_JOB_ID}."
+            print_result = f"Submitted to Slurm as batch job {SLURM_JOB_ID}."
             # 4. Poll SLURM results
             try:
                 cmdlist = []
