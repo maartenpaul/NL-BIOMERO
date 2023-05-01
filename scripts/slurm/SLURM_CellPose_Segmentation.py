@@ -43,7 +43,7 @@ class SlurmClient(Connection):
         slurm_data_path (str): The path to the directory containing the data files for Slurm jobs.
         slurm_images_path (str): The path to the directory containing the Singularity images for Slurm jobs.
         slurm_model_paths (dict): A dictionary containing the paths to the Singularity images for specific Slurm job models.
-
+        slurm_script_path (str): The path to the directory containing the Slurm job submission scripts. This is expected to be a Git repository.
 
     Example:
         # Create a SlurmClient object as contextmanager
