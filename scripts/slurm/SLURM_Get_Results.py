@@ -739,7 +739,7 @@ def runScript():
             'Slurm Get Results',
             '''Retrieve the results from your SLURM job.
             
-            Attach files to provided project/dataset.
+            Attach files to provided project.
             ''',
             scripts.Bool(COMPLETED_JOB, optional=False, grouping="01",
                          default=True),
@@ -793,11 +793,11 @@ def runScript():
                         zip_result = slurmClient.zip_data_on_slurm_server(
                             data_location, filename)
                         if not zip_result.ok:
-                            message += "\n"+zip_result.stderr
-                            print(message)
+                            message += "\nFailed to zip data on Slurm."
+                            print(message, zip_result.stderr)
                         else:
-                            message += "\n"+zip_result.stdout
-                            print(message)
+                            message += "\nSuccesfully zipped data on Slurm."
+                            print(message, zip_result.stdout)
 
                             copy_result = slurmClient.copy_zip_locally(
                                 local_tmp_storage, filename)
