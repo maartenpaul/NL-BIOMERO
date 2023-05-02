@@ -7,6 +7,9 @@
 # Modified work Copyright 2022 Torec Luik, Amsterdam UMC
 # Use is subject to license terms supplied in LICENSE.txt
 #
+# This script is used to run the CellPose segmentation algorithm on a Slurm cluster, using data exported from an Omero server.
+#
+# This script requires the SlurmClient and Fabric Python modules to be installed, as well as access to a Slurm cluster running the CellPose Singularity image.
 
 from __future__ import print_function
 import omero
@@ -19,17 +22,16 @@ from fabric import Connection, Result
 from paramiko import SSHException
 import configparser
 
-IMAGE_EXPORT_SCRIPT = "_SLURM_Image_transfer.py"
-SCRIPTNAMES = [IMAGE_EXPORT_SCRIPT]
-_DEFAULT_DATA_TYPE = "Image"
+
+_IMAGE_EXPORT_SCRIPT = "_SLURM_Image_transfer.py"
 _DEFAULT_MODEL = "nuclei"
 _VALUES_MODELS = [rstring(_DEFAULT_MODEL), rstring("cyto")]
 _PARAM_MODEL = "Model"
 _PARAM_NUCCHANNEL = "Nuclear Channel"
 _PARAM_PROBTHRESH = "Cell probability threshold"
 _PARAM_DIAMETER = "Cell diameter"
-DEFAULT_MAIL = "No"
-DEFAULT_TIME = "00:15:00"
+_DEFAULT_MAIL = "No"
+_DEFAULT_TIME = "00:15:00"
 
 
 class SlurmClient(Connection):
@@ -219,6 +221,62 @@ class SlurmClient(Connection):
             f"Transfering file {local_path} to {self.slurm_data_path}")
         return self.put(local=local_path, remote=self.slurm_data_path)
 
+    def unpack_data(self, zipfile: str, env: Optional[Dict[str, str]] = None) -> Result:
+        """Unpacks a zipped file on the remote Slurm cluster.
+
+        Args:
+            zipfile (str): The name of the zipped file to be unpacked.
+            env (Optional[Dict[str, str]]): Optional environment variables to set when running the command.
+                Defaults to None.
+
+        Returns:
+            Result: The result of the command.
+
+        """
+        cmd = self.get_unzip_command(zipfile)
+        print(f"Unpacking {zipfile} on Slurm")
+        return self.run_commands([cmd], env=env)
+
+    def update_slurm_scripts(self, env: Optional[Dict[str, str]] = None) -> Result:
+        """Updates the local copy of the Slurm job submission scripts.
+
+        This function pulls the latest version of the scripts from the Git repository,
+        and copies them to the slurm_script_path directory.
+
+        Args:
+            env (Optional[Dict[str, str]]): Optional environment variables to set when running the command.
+                Defaults to None.
+
+        Returns:
+            Result: The result of the command.
+        """
+        cmd = self.get_update_slurm_scripts_command()
+        print("Updating Slurm job scripts on Slurm")
+        return self.run_commands([cmd], env=env)
+
+    def run_cellpose(self, cellpose_version, input_data, cp_model, nuc_channel, prob_threshold, cell_diameter, email, time) -> Result:
+        """
+        Runs CellPose on Slurm on the specified input data using the given parameters.
+
+        Args:
+            cellpose_version (str): The version of CellPose to use.
+            input_data (str): The name of the input data folder containing the input image files.
+            cp_model (str): The name of the CellPose model to use for segmentation.
+            nuc_channel (int): The index of the nuclear channel in the image data.
+            prob_threshold (float): The threshold probability value for object segmentation.
+            cell_diameter (int): The approximate diameter of the cells in pixels.
+            email (str): The email address to use for Slurm job notifications.
+            time (str): The time limit for the Slurm job in the format HH:MM:SS.
+
+        Returns:
+            Result: An object containing the output from starting the CellPose job.
+
+        """
+        sbatch_cmd, sbatch_env = self.get_cellpose_command(
+            cellpose_version, input_data, cp_model, nuc_channel, prob_threshold, cell_diameter, email, time)
+        print("Running CellPose job on Slurm")
+        return self.run_commands([sbatch_cmd], sbatch_env)
+
     def get_update_slurm_scripts_command(self) -> str:
         """Generates the command to update the Git repository containing the Slurm scripts, if necessary.
 
@@ -228,11 +286,57 @@ class SlurmClient(Connection):
         update_cmd = f"git -C {self.slurm_script_path} pull"
         return update_cmd
 
-    def get_cellpose_command(self, cellpose_version, zipfile, cp_model, nuc_channel, prob_threshold, cell_diameter, email, time) -> Tuple[str, dict]:
+    def check_job_status(self, slurm_job_id: str, env: Optional[Dict[str, str]] = None) -> Result:
+        """
+        Checks the status of a Slurm job with the given job ID.
+
+        Args:
+            slurm_job_id (str): The job ID of the Slurm job to check.
+            env (Optional[Dict[str, str]]): A dictionary of environment variables to set before executing the command. Defaults to None.
+
+        Returns:
+            Result: The result of the command execution.
+        """
+        cmd = self.get_job_status_command(slurm_job_id)
+        print(f"Getting status of {slurm_job_id} on Slurm")
+        return self.run_commands([cmd], env=env)
+
+    def get_job_status_command(self, slurm_job_id: str) -> str:
+        """
+        Returns the Slurm command to get the status of a job with the given job ID.
+
+        Args:
+            slurm_job_id (str): The job ID of the job to check.
+
+        Returns:
+            str: The Slurm command to get the status of the job.
+        """
+        return f"scontrol show job {slurm_job_id}"
+
+    def get_cellpose_command(self, image_version, input_data, cp_model, nuc_channel, prob_threshold, cell_diameter, email=None, time=None, model="cellpose", job_script="cellpose.sh") -> Tuple[str, dict]:
+        """
+        Returns the command and environment dictionary to run a CellPose job on the Slurm workload manager.
+
+        Args:
+            image_version (str): The version of the Singularity image to use.
+            input_data (str): The name of the input data folder on the shared file system.
+            cp_model (str): The name of the CellPose model to use.
+            nuc_channel (int): The index of the nuclear channel.
+            prob_threshold (float): The probability threshold for nuclei detection.
+            cell_diameter (float): The expected cell diameter in pixels.
+            email (Optional[str]): The email address to send notifications to (default is None).
+            time (Optional[str]): The maximum time for the job to run (default is None).
+            model (str): The name of the folder of the Docker image to use (default is "cellpose").
+            job_script (str): The name of the Slurm job script to use (default is "cellpose.sh").
+
+        Returns:
+            Tuple[str, dict]: A tuple containing the Slurm sbatch command and the environment dictionary.
+
+        """
         sbatch_env = {
-            "DATA_PATH": f"{self.slurm_data_path}/{zipfile}",
-            "IMAGE_PATH": f"{self.slurm_images_path}",
-            "IMAGE_VERSION": f"{cellpose_version}",
+            "DATA_PATH": f"{self.slurm_data_path}/{input_data}",
+            "IMAGE_PATH": f"{self.slurm_images_path}/{model}",
+            "IMAGE_VERSION": f"{image_version}",
         }
         cellpose_env = {
             "DIAMETER": f"{cell_diameter}",
@@ -243,11 +347,11 @@ class SlurmClient(Connection):
         }
         env = {**sbatch_env, **cellpose_env}
 
-        email_param = "" if email is None or email == DEFAULT_MAIL else f" --mail-user={email}"
+        email_param = "" if email is None or email == _DEFAULT_MAIL else f" --mail-user={email}"
         time_param = "" if time is None else f" --time={time}"
         job_params = [time_param, email_param]
         job_param = "".join(job_params)
-        sbatch_cmd = f"sbatch{job_param} {self.slurm_script_path}/jobs/cellpose.sh"
+        sbatch_cmd = f"sbatch{job_param} {self.slurm_script_path}/jobs/{job_script}"
 
         return sbatch_cmd, env
 
@@ -318,7 +422,7 @@ def runScript():
         params.authors = ["Torec Luik"]
         params.version = "0.0.3"
         params.description = f'''Script to run CellPose on slurm cluster.
-        First run the {IMAGE_EXPORT_SCRIPT} script to export your data to the cluster.
+        First run the {_IMAGE_EXPORT_SCRIPT} script to export your data to the cluster.
         
         Specifically will run: 
         https://hub.docker.com/r/torecluik/t_nucleisegmentation-cellpose
@@ -348,7 +452,7 @@ def runScript():
                             description="Diameter of a cell. Leave at 0 to let the computer guess.",
                             default=0),
             omscripts.String("Folder_Name", grouping="05",
-                             description=f"Name of folder where images are stored, as provided with {IMAGE_EXPORT_SCRIPT}",
+                             description=f"Name of folder where images are stored, as provided with {_IMAGE_EXPORT_SCRIPT}",
                              values=_datafiles),
             omscripts.Bool("Slurm Job Parameters",
                            grouping="06", default=True),
@@ -357,10 +461,10 @@ def runScript():
                              values=_versions),
             omscripts.String("Duration", grouping="06.2",
                              description="Maximum time the script should run for. Max is 8 hours. Notation is hh:mm:ss",
-                             default=DEFAULT_TIME),
+                             default=_DEFAULT_TIME),
             omscripts.String("E-mail", grouping="06.3",
                              description="Provide an e-mail if you want a mail when your job is done or cancelled.",
-                             default=DEFAULT_MAIL)
+                             default=_DEFAULT_MAIL)
         ]
         inputs = {
             p._name: p for p in input_list
@@ -369,52 +473,60 @@ def runScript():
         params.namespaces = [omero.constants.namespaces.NSDYNAMIC]
         client = omscripts.client(params)
 
+        # Unpack script input values
         cellpose_version = unwrap(client.getInput("Version"))
+        zipfile = unwrap(client.getInput("Folder_Name"))
+        cp_model = unwrap(client.getInput(_PARAM_MODEL))
+        nuc_channel = unwrap(client.getInput(_PARAM_NUCCHANNEL))
+        prob_threshold = unwrap(client.getInput(_PARAM_PROBTHRESH))
+        cell_diameter = unwrap(client.getInput(_PARAM_DIAMETER))
+        email = unwrap(client.getInput("E-mail"))
+        time = unwrap(client.getInput("Duration"))
+
         try:
-            # 1. Get image(s) from OMERO
-            # 2. Send image(s) to SLURM
-            # Use _SLURM_Image_Transfer script from Omero
-
             # 3. Call SLURM (segmentation)
-            zipfile = unwrap(client.getInput("Folder_Name"))
-            cp_model = unwrap(client.getInput(_PARAM_MODEL))
-            nuc_channel = unwrap(client.getInput(_PARAM_NUCCHANNEL))
-            prob_threshold = unwrap(client.getInput(_PARAM_PROBTHRESH))
-            cell_diameter = unwrap(client.getInput(_PARAM_DIAMETER))
-            email = unwrap(client.getInput("E-mail"))
-            time = unwrap(client.getInput("Duration"))
-            cmdlist = []
-            unzip_cmd = slurmClient.get_unzip_command(zipfile)
-            cmdlist.append(unzip_cmd)
-            update_cmd = slurmClient.get_update_slurm_scripts_command()
-            cmdlist.append(update_cmd)
-            sbatch_cmd, sbatch_env = slurmClient.get_cellpose_command(
-                cellpose_version, zipfile, cp_model, nuc_channel, prob_threshold, cell_diameter, email, time)
-            cmdlist.append(sbatch_cmd)
-            # ... Submitted batch job 73547
-            print_result = slurmClient.run_commands(cmdlist, sbatch_env)
-            print_result = "".join(print_result.stdout)
-            print(print_result)
-            SLURM_JOB_ID = next((int(s.strip()) for s in print_result.split(
-                "Submitted batch job") if s.strip().isdigit()), -1)
-            print_result = f"Submitted to Slurm as batch job {SLURM_JOB_ID}."
-            # 4. Poll SLURM results
-            try:
-                cmdlist = []
-                cmdlist.append(f"scontrol show job {SLURM_JOB_ID}")
-                print_job = slurmClient.run_commands(cmdlist)
-                print(print_job.stdout)
-                job_state = re.search(
-                    'JobState=(\w+) Reason=(\w+)', print_job.stdout).group()
-                print_result += f"\n{job_state}"
-            except Exception as e:
-                print_result += f" ERROR WITH JOB: {e}"
+            unpack_result = slurmClient.unpack_data(zipfile)
+            print(unpack_result.stdout)
+            if not unpack_result.ok:
+                print("Error unpacking data:", unpack_result.stderr)
+            else:
+                update_result = slurmClient.update_slurm_scripts()
+                print(update_result.stdout)
+                if not update_result.ok:
+                    print("Error updating SLURM scripts:", update_result.stderr)
+                else:
+                    cp_result = slurmClient.run_cellpose(cellpose_version,
+                                                         zipfile,
+                                                         cp_model,
+                                                         nuc_channel,
+                                                         prob_threshold,
+                                                         cell_diameter,
+                                                         email,
+                                                         time)
+                    print(cp_result.stdout)
+                    if not cp_result.ok:
+                        print("Error running CellPose job:", cp_result.stderr)
+                    else:
+                        slurm_job_id = next((int(s.strip()) for s in cp_result.stdout.split(
+                            "Submitted batch job") if s.strip().isdigit()), -1)
+                        print_result = f"Submitted to Slurm as batch job {slurm_job_id}."
+                        # 4. Poll SLURM results
+                        try:
+                            poll_result = slurmClient.check_job_status(
+                                slurm_job_id)
+                            print(poll_result.stdout)
+                            if not poll_result.ok:
+                                print("Error checking job status:",
+                                      poll_result.stderr)
+                            else:
+                                job_state = re.search(
+                                    'JobState=(\w+) Reason=(\w+)', poll_result.stdout).group()
+                                print_result += f"\n{job_state}"
+                        except Exception as e:
+                            print_result += f" ERROR WITH JOB: {e}"
+                            print(print_result)
 
-            # 5. Retrieve SLURM images
-
-            # 6. Store results in OMERO
-
-            # 7. Script output
+             # 7. Script output
             client.setOutput("Message", rstring(print_result))
         finally:
             client.closeSession()
