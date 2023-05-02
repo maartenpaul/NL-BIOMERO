@@ -24,6 +24,7 @@ import glob
 # SlurmClient dependencies
 from typing import Dict, List, Optional, Tuple
 from fabric import Connection, Result
+from fabric.transfer import Result as TransferResult
 from paramiko import SSHException
 import configparser
 
@@ -394,19 +395,23 @@ class SlurmClient(Connection):
 
         return sbatch_cmd, env
 
-    def copy_zip_locally(self, local_tmp_storage: str, filename: str) -> Result:
+    def copy_zip_locally(self, local_tmp_storage: str, filename: str) -> TransferResult:
         """ Copy zip from SLURM to local server
+
+        Note about (Transfer)Result:
+
+        Unlike similar classes such as invoke.runners.Result or fabric.runners.Result 
+        (which have a concept of “warn and return anyways on failure”) this class has no useful truthiness behavior. 
+        If a file transfer fails, some exception will be raised, either an OSError or an error from within Paramiko.
 
         Args:
             local_tmp_storage (String): Path to store zip
             filename (String): Zip filename on Slurm
         """
-
-        results = self.get(
+        print(f"Copying zip {filename} from Slurm to {local_tmp_storage}")
+        return self.get(
             remote=f"{filename}.zip",
             local=local_tmp_storage)
-        print(f"Ran slurm: {results.stdout}")
-        return results
 
     def zip_data_on_slurm_server(self, data_location: str, filename: str, env: Optional[Dict[str, str]] = None) -> Result:
         """Zip the output folder of a job on SLURM
@@ -423,22 +428,28 @@ class SlurmClient(Connection):
     def get_zip_command(self, data_location: str, filename: str) -> str:
         return self._ZIP_CMD.format(filename=filename, data_location=data_location)
 
-    def get_logfile_from_slurm(self, slurm_job_id: str, local_tmp_storage: str = "/tmp/", logfile: str = None) -> Tuple[str, str, Result]:
+    def get_logfile_from_slurm(self, slurm_job_id: str, local_tmp_storage: str = "/tmp/", logfile: str = None) -> Tuple[str, str, TransferResult]:
         """Copy the logfile of given SLURM job to local server
+
+        Note about (Transfer)Result:
+
+        Unlike similar classes such as invoke.runners.Result or fabric.runners.Result 
+        (which have a concept of “warn and return anyways on failure”) this class has no useful truthiness behavior. 
+        If a file transfer fails, some exception will be raised, either an OSError or an error from within Paramiko.
 
         Args:
             slurm_job_id (String): ID of the SLURM job
 
         Returns:
-            Tuple: directory, full path of the logfile, and run Result
+            Tuple: directory, full path of the logfile, and TransferResult
         """
         if logfile is None:
             logfile = self._LOGFILE
         logfile = logfile.format(slurm_job_id=slurm_job_id)
+        print(f"Copying logfile {logfile} from Slurm to {local_tmp_storage}")
         result = self.get(
             remote=logfile,
             local=local_tmp_storage)
-        print(f"Ran slurm {result.stdout}")
         export_file = local_tmp_storage+logfile
         return local_tmp_storage, export_file, result
 
@@ -621,6 +632,8 @@ def cleanup_tmp_files_locally(message, folder):
     except Exception as e:
         message += f" Failed to cleanup tmp files: {e}"
 
+    return message
+
 
 def upload_contents_to_omero(client, conn, message, folder):
     """Upload contents of folder to OMERO
@@ -638,6 +651,8 @@ def upload_contents_to_omero(client, conn, message, folder):
     except Exception as e:
         message += f" Failed to upload images to OMERO: {e}"
 
+    return message
+
 
 def unzip_zip_locally(message, folder):
     """ Unzip a zipfile
@@ -654,6 +669,8 @@ def unzip_zip_locally(message, folder):
     except Exception as e:
         message += f" Unzip failed: {e}"
 
+    return message
+
 
 def upload_zip_to_omero(client, conn, message, slurm_job_id, projects, folder):
     """ Upload a zip to omero (without unpacking)
@@ -668,18 +685,24 @@ def upload_zip_to_omero(client, conn, message, slurm_job_id, projects, folder):
     """
     try:
         # upload zip and link to project(s)
+        print(f"Uploading {folder}.zip and attaching to {projects}")
         mimetype = "application/zip"
         namespace = NSCREATED + "/SLURM/SLURM_GET_RESULTS"
         description = f"Results from SLURM job {slurm_job_id}"
         zip_annotation = conn.createFileAnnfromLocalFile(
             f"{folder}.zip", mimetype=mimetype,
             ns=namespace, desc=description)
+
+        client.setOutput("File_Annotation", robject(zip_annotation._obj))
+
         for project in projects:
             project.linkAnnotation(zip_annotation)  # link it to project.
-        print(f"Uploaded {folder}.zip and attached to {projects}")
-        client.setOutput("File_Annotation", robject(zip_annotation._obj))
+        message += f"Attached zip to {projects}"
     except Exception as e:
         message += f" Uploading zip failed: {e}"
+        print(message)
+
+    return message
 
 
 def extract_data_location_from_log(export_file):
@@ -756,10 +779,12 @@ def runScript():
                     # Copy file to server
                     local_tmp_storage, export_file, get_result = slurmClient.get_logfile_from_slurm(
                         slurm_job_id)
-                    message += "\n"+get_result.stdout
+                    message += "\nSuccesfully copied logfile."
+                    print(message, get_result)
 
                     # Read file for data location
                     data_location = extract_data_location_from_log(export_file)
+                    print(f"Extracted {data_location}")
 
                     # zip and scp data location
                     if data_location:
@@ -767,24 +792,33 @@ def runScript():
 
                         zip_result = slurmClient.zip_data_on_slurm_server(
                             data_location, filename)
-                        message += "\n"+zip_result.stdout
+                        if not zip_result.ok:
+                            message += "\n"+zip_result.stderr
+                            print(message)
+                        else:
+                            message += "\n"+zip_result.stdout
+                            print(message)
 
-                        copy_result = slurmClient.copy_zip_locally(
-                            local_tmp_storage, filename)
-                        message += "\n"+copy_result.stdout
+                            copy_result = slurmClient.copy_zip_locally(
+                                local_tmp_storage, filename)
 
-                        folder = f"{local_tmp_storage}/{filename}"
+                            message += "\nSuccesfully copied zip."
+                            print(message, copy_result)
 
-                        upload_zip_to_omero(
-                            client, conn, message, slurm_job_id, projects, folder)
+                            folder = f"{local_tmp_storage}/{filename}"
 
-                        unzip_zip_locally(message, folder)
+                            message = upload_zip_to_omero(
+                                client, conn, message, slurm_job_id, projects, folder)
 
-                        upload_contents_to_omero(client, conn, message, folder)
+                            message = unzip_zip_locally(message, folder)
 
-                        cleanup_tmp_files_locally(message, folder)
+                            message = upload_contents_to_omero(
+                                client, conn, message, folder)
 
-                        # TODO cleanup_tmp_files_slurm ?
+                            message = cleanup_tmp_files_locally(
+                                message, folder)
+
+                            # TODO cleanup_tmp_files_slurm ?
 
                 except Exception as e:
                     message += f" Retrieving results failed: {e}\n"
