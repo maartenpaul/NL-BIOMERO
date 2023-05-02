@@ -17,8 +17,8 @@ from omero.grid import JobParams
 from omero.rtypes import rstring, unwrap
 import omero.scripts as omscripts
 from typing import Dict, List, Optional, Tuple
-import re
 from fabric import Connection, Result
+from fabric.transfer import Result as TransferResult
 from paramiko import SSHException
 import configparser
 
@@ -78,6 +78,8 @@ class SlurmClient(Connection):
     _DATA_CMD = "ls -h {slurm_data_path} | grep -oP '.+(?=.zip)'"
     _ACCT_CMD = "sacct --starttime {start_time} -o JobId -n -X"
     _ZIP_CMD = "7z a -y {filename} -tzip {data_location}/data/out"
+    # TODO move all commands to a similar format.
+    # Then maybe allow overwrite from slurm-config.ini
     _LOGFILE = "omero-{slurm_job_id}.log"
 
     def __init__(self,
@@ -230,6 +232,23 @@ class SlurmClient(Connection):
         return job_list
 
     def get_old_job_command(self, start_time: str = "2023-01-01") -> str:
+        """Return the Slurm command to retrieve information about old jobs.
+
+        The command will be formatted with the specified start time, which is
+        expected to be in the ISO format "YYYY-MM-DD".
+        The command will use the "sacct" tool to query the
+        Slurm accounting database for jobs that started on or after the
+        specified start time, and will output only the job IDs (-o JobId)
+        without header or trailer lines (-n -X).
+
+        Args:
+            start_time (str): The start time from which to retrieve job information.
+                Defaults to "2023-01-01".
+
+        Returns:
+            str: A string representing the Slurm command to retrieve information
+                about old jobs.
+        """
         return self._ACCT_CMD.format(start_time=start_time)
 
     def transfer_data(self, local_path: str) -> Result:
@@ -380,19 +399,23 @@ class SlurmClient(Connection):
 
         return sbatch_cmd, env
 
-    def copy_zip_locally(self, local_tmp_storage: str, filename: str) -> Result:
+    def copy_zip_locally(self, local_tmp_storage: str, filename: str) -> TransferResult:
         """ Copy zip from SLURM to local server
+
+        Note about (Transfer)Result:
+
+        Unlike similar classes such as invoke.runners.Result or fabric.runners.Result 
+        (which have a concept of “warn and return anyways on failure”) this class has no useful truthiness behavior. 
+        If a file transfer fails, some exception will be raised, either an OSError or an error from within Paramiko.
 
         Args:
             local_tmp_storage (String): Path to store zip
             filename (String): Zip filename on Slurm
         """
-
-        results = self.get(
+        print(f"Copying zip {filename} from Slurm to {local_tmp_storage}")
+        return self.get(
             remote=f"{filename}.zip",
             local=local_tmp_storage)
-        print(f"Ran slurm: {results.stdout}")
-        return results
 
     def zip_data_on_slurm_server(self, data_location: str, filename: str, env: Optional[Dict[str, str]] = None) -> Result:
         """Zip the output folder of a job on SLURM
@@ -409,22 +432,28 @@ class SlurmClient(Connection):
     def get_zip_command(self, data_location: str, filename: str) -> str:
         return self._ZIP_CMD.format(filename=filename, data_location=data_location)
 
-    def get_logfile_from_slurm(self, slurm_job_id: str, local_tmp_storage: str = "/tmp/", logfile: str = None) -> Tuple[str, str, Result]:
+    def get_logfile_from_slurm(self, slurm_job_id: str, local_tmp_storage: str = "/tmp/", logfile: str = None) -> Tuple[str, str, TransferResult]:
         """Copy the logfile of given SLURM job to local server
+
+        Note about (Transfer)Result:
+
+        Unlike similar classes such as invoke.runners.Result or fabric.runners.Result 
+        (which have a concept of “warn and return anyways on failure”) this class has no useful truthiness behavior. 
+        If a file transfer fails, some exception will be raised, either an OSError or an error from within Paramiko.
 
         Args:
             slurm_job_id (String): ID of the SLURM job
 
         Returns:
-            Tuple: directory, full path of the logfile, and run Result
+            Tuple: directory, full path of the logfile, and TransferResult
         """
         if logfile is None:
             logfile = self._LOGFILE
         logfile = logfile.format(slurm_job_id=slurm_job_id)
+        print(f"Copying logfile {logfile} from Slurm to {local_tmp_storage}")
         result = self.get(
             remote=logfile,
             local=local_tmp_storage)
-        print(f"Ran slurm {result.stdout}")
         export_file = local_tmp_storage+logfile
         return local_tmp_storage, export_file, result
 

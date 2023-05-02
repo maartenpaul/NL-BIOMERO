@@ -482,3 +482,4 @@ class SlurmClient(Connection):
         response_list = [response.strip().split('\n')
                          for response in response_list]
         return response_list[0], response_list[1]
+  

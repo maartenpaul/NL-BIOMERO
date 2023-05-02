@@ -78,6 +78,8 @@ class SlurmClient(Connection):
     _DATA_CMD = "ls -h {slurm_data_path} | grep -oP '.+(?=.zip)'"
     _ACCT_CMD = "sacct --starttime {start_time} -o JobId -n -X"
     _ZIP_CMD = "7z a -y {filename} -tzip {data_location}/data/out"
+    # TODO move all commands to a similar format. 
+    # Then maybe allow overwrite from slurm-config.ini
     _LOGFILE = "omero-{slurm_job_id}.log"
 
     def __init__(self,
@@ -230,6 +232,23 @@ class SlurmClient(Connection):
         return job_list
 
     def get_old_job_command(self, start_time: str = "2023-01-01") -> str:
+        """Return the Slurm command to retrieve information about old jobs.
+
+        The command will be formatted with the specified start time, which is
+        expected to be in the ISO format "YYYY-MM-DD".
+        The command will use the "sacct" tool to query the
+        Slurm accounting database for jobs that started on or after the
+        specified start time, and will output only the job IDs (-o JobId)
+        without header or trailer lines (-n -X).
+
+        Args:
+            start_time (str): The start time from which to retrieve job information.
+                Defaults to "2023-01-01".
+
+        Returns:
+            str: A string representing the Slurm command to retrieve information
+                about old jobs.
+        """
         return self._ACCT_CMD.format(start_time=start_time)
 
     def transfer_data(self, local_path: str) -> Result:
@@ -493,7 +512,7 @@ class SlurmClient(Connection):
                          for response in response_list]
         return response_list[0], response_list[1]
 
-
+  
 def load_image(conn, image_id):
     """Load the Image object.
 
