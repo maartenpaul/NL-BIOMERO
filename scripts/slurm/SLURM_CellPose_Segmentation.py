@@ -76,6 +76,9 @@ class SlurmClient(Connection):
     _OUT_SEP = "--split--"
     _VERSION_CMD = "ls -h {slurm_images_path}/{image_path} | grep -oP '(?<=-)v.+(?=.simg)'"
     _DATA_CMD = "ls -h {slurm_data_path} | grep -oP '.+(?=.zip)'"
+    _ACCT_CMD = "sacct --starttime {start_time} -o JobId -n -X"
+    _ZIP_CMD = "7z a -y {filename} -tzip {data_location}/data/out"
+    _LOGFILE = "omero-{slurm_job_id}.log"
 
     def __init__(self,
                  host=_DEFAULT_HOST,
@@ -208,6 +211,27 @@ class SlurmClient(Connection):
             print(error)
             raise SSHException(error)
 
+    def list_old_jobs(self, env: Optional[Dict[str, str]] = None) -> List[str]:
+        """Get list of finished jobs from SLURM.
+
+        Args:
+            env (Optional[Dict[str, str]]): Optional environment variables to set when running the command.
+                Defaults to None.
+
+        Returns:
+            List: List of Job Ids
+        """
+
+        cmd = self.get_old_job_command()
+        print("Retrieving list of finished jobs from Slurm")
+        result = self.run_commands([cmd], env=env)
+        job_list = result.stdout.strip().split('\n')
+        job_list.reverse()
+        return job_list
+
+    def get_old_job_command(self, start_time: str = "2023-01-01") -> str:
+        return self._ACCT_CMD.format(start_time=start_time)
+
     def transfer_data(self, local_path: str) -> Result:
         """Transfers a file or directory from the local machine to the remote Slurm cluster.
 
@@ -311,7 +335,8 @@ class SlurmClient(Connection):
         Returns:
             str: The Slurm command to get the status of the job.
         """
-        return f"scontrol show job {slurm_job_id}"
+
+        return f"sacct -n -o JobId,State,End -X -j {slurm_job_id}"
 
     def get_cellpose_command(self, image_version, input_data, cp_model, nuc_channel, prob_threshold, cell_diameter, email=None, time=None, model="cellpose", job_script="cellpose.sh") -> Tuple[str, dict]:
         """
@@ -347,13 +372,61 @@ class SlurmClient(Connection):
         }
         env = {**sbatch_env, **cellpose_env}
 
-        email_param = "" if email is None or email == _DEFAULT_MAIL else f" --mail-user={email}"
+        email_param = "" if email is None else f" --mail-user={email}"
         time_param = "" if time is None else f" --time={time}"
         job_params = [time_param, email_param]
         job_param = "".join(job_params)
-        sbatch_cmd = f"sbatch{job_param} {self.slurm_script_path}/jobs/{job_script}"
+        sbatch_cmd = f"sbatch{job_param} --output=omero-%4j.log {self.slurm_script_path}/jobs/{job_script}"
 
         return sbatch_cmd, env
+
+    def copy_zip_locally(self, local_tmp_storage: str, filename: str) -> Result:
+        """ Copy zip from SLURM to local server
+
+        Args:
+            local_tmp_storage (String): Path to store zip
+            filename (String): Zip filename on Slurm
+        """
+
+        results = self.get(
+            remote=f"{filename}.zip",
+            local=local_tmp_storage)
+        print(f"Ran slurm: {results.stdout}")
+        return results
+
+    def zip_data_on_slurm_server(self, data_location: str, filename: str, env: Optional[Dict[str, str]] = None) -> Result:
+        """Zip the output folder of a job on SLURM
+
+        Args:
+            data_location (String): Folder on SLURM with the "data/out" subfolder
+            filename (String): Name to give to the zipfile
+        """
+        # zip
+        zip_cmd = self.get_zip_command(data_location, filename)
+        print(f"Zipping {data_location} as {filename} on Slurm")
+        return self.run_commands([zip_cmd], env=env)
+
+    def get_zip_command(self, data_location: str, filename: str) -> str:
+        return self._ZIP_CMD.format(filename=filename, data_location=data_location)
+
+    def get_logfile_from_slurm(self, slurm_job_id: str, local_tmp_storage: str = "/tmp/", logfile: str = None) -> Tuple[str, str, Result]:
+        """Copy the logfile of given SLURM job to local server
+
+        Args:
+            slurm_job_id (String): ID of the SLURM job
+
+        Returns:
+            Tuple: directory, full path of the logfile, and run Result
+        """
+        if logfile is None:
+            logfile = self._LOGFILE
+        logfile = logfile.format(slurm_job_id=slurm_job_id)
+        result = self.get(
+            remote=logfile,
+            local=local_tmp_storage)
+        print(f"Ran slurm {result.stdout}")
+        export_file = local_tmp_storage+logfile
+        return local_tmp_storage, export_file, result
 
     def get_unzip_command(self, zipfile: str, filter_filetypes: str = "*.tiff *.tif") -> str:
         """
@@ -481,6 +554,8 @@ def runScript():
         prob_threshold = unwrap(client.getInput(_PARAM_PROBTHRESH))
         cell_diameter = unwrap(client.getInput(_PARAM_DIAMETER))
         email = unwrap(client.getInput("E-mail"))
+        if email == _DEFAULT_MAIL:
+            email = None
         time = unwrap(client.getInput("Duration"))
 
         try:
@@ -519,9 +594,7 @@ def runScript():
                                 print("Error checking job status:",
                                       poll_result.stderr)
                             else:
-                                job_state = re.search(
-                                    'JobState=(\w+) Reason=(\w+)', poll_result.stdout).group()
-                                print_result += f"\n{job_state}"
+                                print_result += f"\n{poll_result.stdout}"
                         except Exception as e:
                             print_result += f" ERROR WITH JOB: {e}"
                             print(print_result)
