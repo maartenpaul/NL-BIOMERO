@@ -16,7 +16,7 @@ import omero.gateway
 from omero import scripts
 from omero.constants.namespaces import NSCREATED
 from omero.gateway import BlitzGateway
-from omero.rtypes import rstring, robject, unwrap, rint
+from omero.rtypes import rstring, robject, unwrap
 import os
 import re
 import zipfile
@@ -28,25 +28,10 @@ from fabric.transfer import Result as TransferResult
 from paramiko import SSHException
 import configparser
 
-_CHANNEL_VALUES = [rint(0), rint(1), rint(2), rint(3)]
-_DEFAULT_CHANNEL_CYTOPLASM = 0
-_DEFAULT_CHANNEL_NUCLEUS = 0
-_DEFAULT_DATA_TYPE = "Image"
-_DEFAULT_MODEL = "nuclei"
-_MODELS_VALUES = [rstring(_DEFAULT_MODEL)]
-_PARAM_CHANNEL_CYTOPLASM = "Channel_(cytoplasm)"
-_PARAM_CHANNEL_NUCLEUS = "Channel_(nucleus)"
-_PARAM_DATA_TYPE = "Data_Type"
-_PARAM_IDS = "IDs"
-_PARAM_MODEL = "Model"
-_QUEUE_COMMAND = "squeue --nohead --format %F -u ttluik"
-SLURM_JOB_ID = "SLURM Job Id"
-SLURM_JOB_ID_OLD = "SLURM Job Id (old)"
-RUN_ON_GPU_NS = "GPU"
-RUNNING_JOB = "Running Job"
-COMPLETED_JOB = "Completed Job"
-LOGFILE_PATH_PATTERN_GROUP = "DATA_PATH"
-LOGFILE_PATH_PATTERN = f"Running CellPose w/ (?P<IMAGE_PATH>.+) \| (?P<IMAGE_VERSION>.+) \| (?P<{LOGFILE_PATH_PATTERN_GROUP}>.+) \|.*"
+_SLURM_JOB_ID = "SLURM Job Id"
+_COMPLETED_JOB = "Completed Job"
+_LOGFILE_PATH_PATTERN_GROUP = "DATA_PATH"
+_LOGFILE_PATH_PATTERN = f"Running \w+ w/ (?P<IMAGE_PATH>.+) \| (?P<IMAGE_VERSION>.+) \| (?P<{_LOGFILE_PATH_PATTERN_GROUP}>.+) \|.*"
 
 
 class SlurmClient(Connection):
@@ -606,8 +591,9 @@ def getUserProjects():
         client.createSession()
         conn = omero.gateway.BlitzGateway(client_obj=client)
         conn.SERVICE_OPTS.setOmeroGroup(-1)
+        # TODO this somehow gets also datasets? But we only allow projects. Filter?
         objparams = [rstring('%d: %s' % (d.id, d.getName()))
-                     for d in conn.getObjects('Project')]
+                     for d in conn.getObjects('Project') if type(d) == omero.gateway.ProjectWrapper]
         #  if type(d) == omero.model.ProjectI
         if not objparams:
             objparams = [rstring('<No objects found>')]
@@ -714,13 +700,14 @@ def extract_data_location_from_log(export_file):
     Returns:
         String: Data location according to the log
     """
+    # TODO move to SlurmClient? makes more sense to read this remotely? Can we?
     with open(export_file, 'r', encoding='utf-8') as log:
         data_location = None
         for line in log:
             print(line)
-            match = re.match(pattern=LOGFILE_PATH_PATTERN, string=line)
+            match = re.match(pattern=_LOGFILE_PATH_PATTERN, string=line)
             if match:
-                data_location = match.group(LOGFILE_PATH_PATTERN_GROUP)
+                data_location = match.group(_LOGFILE_PATH_PATTERN_GROUP)
                 break
     return data_location
 
@@ -741,9 +728,9 @@ def runScript():
             
             Attach files to provided project.
             ''',
-            scripts.Bool(COMPLETED_JOB, optional=False, grouping="01",
+            scripts.Bool(_COMPLETED_JOB, optional=False, grouping="01",
                          default=True),
-            scripts.String(SLURM_JOB_ID, optional=False, grouping="01.1",
+            scripts.String(_SLURM_JOB_ID, optional=False, grouping="01.1",
                            values=_oldjobs),
             scripts.List("Project", optional=False, grouping="02.5",
                          description="Project to attach workflow results to",
@@ -759,10 +746,10 @@ def runScript():
             print(f"Request: {scriptParams}\n")
 
             # Job id
-            slurm_job_id = unwrap(client.getInput(SLURM_JOB_ID)).strip()
+            slurm_job_id = unwrap(client.getInput(_SLURM_JOB_ID)).strip()
 
             # Ask job State
-            if unwrap(client.getInput(COMPLETED_JOB)):
+            if unwrap(client.getInput(_COMPLETED_JOB)):
                 result = slurmClient.check_job_status(slurm_job_id)
                 print(result.stdout)
                 message += f"\n{result.stdout}"
@@ -774,7 +761,7 @@ def runScript():
                         for p in project_ids]
 
             # Job log
-            if unwrap(client.getInput(COMPLETED_JOB)):
+            if unwrap(client.getInput(_COMPLETED_JOB)):
                 try:
                     # Copy file to server
                     local_tmp_storage, export_file, get_result = slurmClient.get_logfile_from_slurm(
