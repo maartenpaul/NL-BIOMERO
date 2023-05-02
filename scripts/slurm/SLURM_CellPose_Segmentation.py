@@ -68,11 +68,11 @@ class SlurmClient(Connection):
     _DEFAULT_CONFIG_PATH_2 = "~/slurm-config.ini"
     _DEFAULT_HOST = "slurm"
     _DEFAULT_INLINE_SSH_ENV = True
-    _DEFAULT_SLURM_DATA_PATH = "my-scratch/data/"
-    _DEFAULT_SLURM_IMAGES_PATH = "my-scratch/singularity_images/workflows/"
-    _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts/"
+    _DEFAULT_SLURM_DATA_PATH = "my-scratch/data"
+    _DEFAULT_SLURM_IMAGES_PATH = "my-scratch/singularity_images/workflows"
+    _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
     _OUT_SEP = "--split--"
-    _VERSION_CMD = "ls -h {slurm_images_path}{image_path} | grep -oP '(?<=-)v.+(?=.simg)'"
+    _VERSION_CMD = "ls -h {slurm_images_path}/{image_path} | grep -oP '(?<=-)v.+(?=.simg)'"
     _DATA_CMD = "ls -h {slurm_data_path} | grep -oP '.+(?=.zip)'"
 
     def __init__(self,
