@@ -7,7 +7,7 @@ set -e
 # `-v $HOME/.ssh:/tmp/.ssh:ro` thus this entrypoint will automatically handle problem.
 
 if [[ -d /tmp/.ssh ]]; then
-
+  # TODO: error on windows ? this didn't copy 'config'
   cp -R /tmp/.ssh /opt/omero/server/.ssh
   chmod 700 /opt/omero/server/.ssh
   chmod 600 /opt/omero/server/.ssh/*

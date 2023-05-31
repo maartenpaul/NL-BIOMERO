@@ -9,7 +9,7 @@ ENV VIRTUAL_ENV=/opt/omero/server/venv3
 ENV PATH=/opt/ice-3.6.5-0.3.0/bin:$VIRTUAL_ENV/bin/:$PATH
 RUN python3 -m venv $VIRTUAL_ENV \
     && python3 -m pip install --upgrade pip \
-    && python3 -m pip install fabric
+    && python3 -m pip install fabric==2.6.0
 # SSH library fabric
 
 ## Create extra Python environments

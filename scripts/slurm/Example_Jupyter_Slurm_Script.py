@@ -207,6 +207,18 @@ def runScript():
             print(results)
         finally:
             print_result.append(f"{results.stdout.decode('utf-8')}")
+        # Scripts that generate a URL link should return the omero.rtypes.rmap, 
+        # with the following keys: “type”: “URL”, 
+        # “href”: “URL address to open”, 
+        # “title”: “Help message”. 
+        # The client will give users the option of opening the URL in a new browser window/tab. 
+        # To use this feature the URL omero.types.rmap should use the key: ‘URL’ in the output map.
+        # url = omero.rtypes.wrap({
+        #     "type": "URL",
+        #     "href": "https://<server>:<jupyterport>",
+        #     "title": "Open URL link to your jupyter notebook",
+        # })
+        # client.setOutput("URL", url)
         client.setOutput("Message", rstring("".join(print_result)))
     finally:
         client.closeSession()
