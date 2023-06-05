@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 _SLURM_JOB_ID = "SLURM Job Id"
 _COMPLETED_JOB = "Completed Job"
 _LOGFILE_PATH_PATTERN_GROUP = "DATA_PATH"
-_LOGFILE_PATH_PATTERN = f"Running \w+ w/ (?P<IMAGE_PATH>.+) \| (?P<IMAGE_VERSION>.+) \| (?P<{_LOGFILE_PATH_PATTERN_GROUP}>.+) \|.*"
+_LOGFILE_PATH_PATTERN = f"Running [\w-]+? Job w\/ .+? \| .+? \| (?P<{_LOGFILE_PATH_PATTERN_GROUP}>.+?) \|.*"
 
 
 class SlurmClient(Connection):
@@ -1516,7 +1516,13 @@ def extract_data_location_from_log(export_file):
     with open(export_file, 'r', encoding='utf-8') as log:
         data_location = None
         for line in log:
-            print(line)
+            try:
+                print(f"logline: {line}")
+            except UnicodeEncodeError as e:
+                logger.error(f"Unicode error: {e}")
+                line = line.encode(
+                    'ascii', 'ignore').decode('ascii')
+                print(f"logline: {line}")
             match = re.match(pattern=_LOGFILE_PATH_PATTERN, string=line)
             if match:
                 data_location = match.group(_LOGFILE_PATH_PATTERN_GROUP)
@@ -1562,7 +1568,7 @@ def runScript():
 
             # Ask job State
             if unwrap(client.getInput(_COMPLETED_JOB)):
-                result = slurmClient.check_job_status(slurm_job_id)
+                _, result = slurmClient.check_job_status([slurm_job_id])
                 print(result.stdout)
                 message += f"\n{result.stdout}"
 
@@ -1579,7 +1585,8 @@ def runScript():
                     slurm_job_id)
                 (local_tmp_storage, export_file, get_result) = tup
                 message += "\nSuccesfully copied logfile."
-                print(message, get_result.__dict__)
+                print(message)
+                print(get_result.__dict__)
 
                 # Read file for data location
                 data_location = extract_data_location_from_log(export_file)
