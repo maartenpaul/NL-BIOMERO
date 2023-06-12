@@ -7,10 +7,12 @@ USER root
 ## Default Python environment
 ENV VIRTUAL_ENV=/opt/omero/server/venv3
 ENV PATH=/opt/ice-3.6.5-0.3.0/bin:$VIRTUAL_ENV/bin/:$PATH
+RUN yum -y install git
+# RUN git clone https://github.com/NL-BioImaging/omero-slurm-client.git
 RUN python3 -m venv $VIRTUAL_ENV \
     && python3 -m pip install --upgrade pip \
-    && python3 -m pip install fabric==2.6.0
-# SSH library fabric
+    && python3 -m pip install 'git+https://github.com/NL-BioImaging/omero-slurm-client.git'
+# SSH library fabric and omero-slurm-client
 
 ## Create extra Python environments
 # There is no clone with 'venv' so we have to reinstall from requirements file instead
@@ -27,6 +29,7 @@ RUN $VIRTUAL_ENV_CP/bin/python -m pip install --upgrade pip \
 ARG VIRTUAL_ENV_SD
 ENV VIRTUAL_ENV_SD=${VIRTUAL_ENV_SD}
 RUN python3 -m venv $VIRTUAL_ENV_SD
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=1
 RUN $VIRTUAL_ENV_SD/bin/python -m pip install --upgrade pip \
     && $VIRTUAL_ENV_SD/bin/python -m pip install -r requirements.txt \
     && $VIRTUAL_ENV_SD/bin/python -m pip install tensorflow==2.6.2 stardist==0.8.3
