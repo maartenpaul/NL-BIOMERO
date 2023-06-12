@@ -19,24 +19,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def getUserProjects():
-    try:
-        client = omero.client()
-        client.createSession()
-        conn = omero.gateway.BlitzGateway(client_obj=client)
-        conn.SERVICE_OPTS.setOmeroGroup(-1)
-        objparams = [rstring('%d: %s' % (d.id, d.getName()))
-                     for d in conn.getObjects('Project')]
-        #  if type(d) == omero.model.ProjectI
-        if not objparams:
-            objparams = [rstring('<No objects found>')]
-        return objparams
-    except Exception as e:
-        return ['Exception: %s' % e]
-    finally:
-        client.closeSession()
-
-
 def runScript():
     """
     The main entry point of the script
