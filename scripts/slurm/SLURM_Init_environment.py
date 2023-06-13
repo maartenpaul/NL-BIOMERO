@@ -1,4 +1,4 @@
-#!/opt/omero/server/cellposeenv/bin/python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Original work Copyright (C) 2014 University of Dundee

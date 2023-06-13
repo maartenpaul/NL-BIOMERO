@@ -18,6 +18,8 @@ import omero.scripts as omscripts
 import datetime
 from omero_slurm_client import SlurmClient
 import logging
+import time as timesleep
+from paramiko import SSHException
 
 logger = logging.getLogger(__name__)
 
@@ -180,97 +182,94 @@ def runScript():
                 slurm_job_ids = {}
                 # Quick git pull on Slurm for latest version of job scripts
                 update_result = slurmClient.update_slurm_scripts()
-                print(update_result.stdout)
-                if not update_result.ok:
-                    print("Error updating SLURM scripts:",
-                          update_result.stderr)
-                else:
-                    # --------------------------------------------
-                    # :: 3. Create Slurm jobs for all workflows ::
-                    # --------------------------------------------
-                    for wf_name in workflows:
-                        if unwrap(client.getInput(wf_name)):
-                            log_string, slurm_job_id = run_workflow(
-                                slurmClient,
-                                _workflow_params[wf_name],
-                                client,
-                                log_string,
-                                zipfile,
-                                email,
-                                wf_name)
-                            slurm_job_ids[wf_name] = slurm_job_id
+                print(update_result.__dict__)
+                
+                # --------------------------------------------
+                # :: 3. Create Slurm jobs for all workflows ::
+                # --------------------------------------------
+                for wf_name in workflows:
+                    if unwrap(client.getInput(wf_name)):
+                        log_string, slurm_job_id = run_workflow(
+                            slurmClient,
+                            _workflow_params[wf_name],
+                            client,
+                            log_string,
+                            zipfile,
+                            email,
+                            wf_name)
+                        slurm_job_ids[wf_name] = slurm_job_id
 
-                    # 4. Poll SLURM results
-                    slurm_job_id_list = [
-                        x for x in slurm_job_ids.values() if x >= 0]
-                    print(slurm_job_id_list)
-                    while slurm_job_id_list:
-                        # Query all jobids we care about
-                        try:
-                            job_status_dict, _ = slurmClient.check_job_status(
-                                slurm_job_id_list)
-                        except Exception as e:
-                            log_string += f" ERROR WITH JOB: {e}"
+                # 4. Poll SLURM results
+                slurm_job_id_list = [
+                    x for x in slurm_job_ids.values() if x >= 0]
+                print(slurm_job_id_list)
+                while slurm_job_id_list:
+                    # Query all jobids we care about
+                    try:
+                        job_status_dict, _ = slurmClient.check_job_status(
+                            slurm_job_id_list)
+                    except Exception as e:
+                        log_string += f" ERROR WITH JOB: {e}"
 
-                        for slurm_job_id, job_state in job_status_dict.items():
-                            print(f"Job {slurm_job_id} is {job_state}.")
+                    for slurm_job_id, job_state in job_status_dict.items():
+                        print(f"Job {slurm_job_id} is {job_state}.")
 
-                            lm = f"-- Status of batch job\
-                                {slurm_job_id}: {job_state}"
-                            logging.debug(lm)
-                            print(lm)
-                            if job_state == "TIMEOUT":
-                                log_msg = f"Job {slurm_job_id} is TIMEOUT."
-                                log_string += log_msg
-                                # TODO resubmit? add an option?
-                                # new_job_id = slurmClient.resubmit_job(
-                                #     slurm_job_id)
-                                # log_msg = f"Job {slurm_job_id} has been
-                                # resubmitted ({new_job_id})."
-                                print(log_msg)
-                                logging.warning(log_msg)
-                                # log_string += log_msg
-                                slurm_job_id_list.remove(slurm_job_id)
-                                # slurm_job_id_list.append(new_job_id)
-                            elif job_state == "COMPLETED":
-                                # 5. Retrieve SLURM images
-                                # 6. Store results in OMERO
-                                rv_imp = importImagesToOmero(
-                                    client, conn, slurm_job_id)
-                                if rv:
-                                    log_msg = f"{rv_imp['Message'].getValue()}"
-                                else:
-                                    log_msg = "Attempted to import images to\
-                                        Omero."
-                                print(log_msg)
-                                logging.info(log_msg)
-                                log_string += log_msg
-                                slurm_job_id_list.remove(slurm_job_id)
-                            elif (job_state.startswith("CANCELLED")
-                                  or job_state == "FAILED"):
-                                # Remove from future checks
-                                log_msg = f"Job {slurm_job_id} is {job_state}."
-                                print(log_msg)
-                                logging.warning(log_msg)
-                                log_string += log_msg
-                                slurm_job_id_list.remove(slurm_job_id)
-                            elif (job_state == "PENDING"
-                                  or job_state == "RUNNING"):
-                                # expected
-                                log_msg = f"Job {slurm_job_id} is busy..."
-                                print(log_msg)
-                                logging.debug(log_msg)
-                                continue
+                        lm = f"-- Status of batch job\
+                            {slurm_job_id}: {job_state}"
+                        logging.debug(lm)
+                        print(lm)
+                        if job_state == "TIMEOUT":
+                            log_msg = f"Job {slurm_job_id} is TIMEOUT."
+                            log_string += log_msg
+                            # TODO resubmit? add an option?
+                            # new_job_id = slurmClient.resubmit_job(
+                            #     slurm_job_id)
+                            # log_msg = f"Job {slurm_job_id} has been
+                            # resubmitted ({new_job_id})."
+                            print(log_msg)
+                            logging.warning(log_msg)
+                            # log_string += log_msg
+                            slurm_job_id_list.remove(slurm_job_id)
+                            # slurm_job_id_list.append(new_job_id)
+                        elif job_state == "COMPLETED":
+                            # 5. Retrieve SLURM images
+                            # 6. Store results in OMERO
+                            rv_imp = importImagesToOmero(
+                                client, conn, slurm_job_id)
+                            if rv:
+                                log_msg = f"{rv_imp['Message'].getValue()}"
                             else:
-                                log_msg = f"Oops! State of job {slurm_job_id}\
-                                    is unknown: {job_state}. Stop tracking."
-                                print(log_msg)
-                                logging.warning(log_msg)
-                                log_string += log_msg
-                                slurm_job_id_list.remove(slurm_job_id)
+                                log_msg = "Attempted to import images to\
+                                    Omero."
+                            print(log_msg)
+                            logging.info(log_msg)
+                            log_string += log_msg
+                            slurm_job_id_list.remove(slurm_job_id)
+                        elif (job_state.startswith("CANCELLED")
+                                or job_state == "FAILED"):
+                            # Remove from future checks
+                            log_msg = f"Job {slurm_job_id} is {job_state}."
+                            print(log_msg)
+                            logging.warning(log_msg)
+                            log_string += log_msg
+                            slurm_job_id_list.remove(slurm_job_id)
+                        elif (job_state == "PENDING"
+                                or job_state == "RUNNING"):
+                            # expected
+                            log_msg = f"Job {slurm_job_id} is busy..."
+                            print(log_msg)
+                            logging.debug(log_msg)
+                            continue
+                        else:
+                            log_msg = f"Oops! State of job {slurm_job_id}\
+                                is unknown: {job_state}. Stop tracking."
+                            print(log_msg)
+                            logging.warning(log_msg)
+                            log_string += log_msg
+                            slurm_job_id_list.remove(slurm_job_id)
 
-                        # wait for 10 seconds before checking again
-                        timesleep.sleep(10)
+                    # wait for 10 seconds before checking again
+                    timesleep.sleep(10)
 
             # 7. Script output
             client.setOutput("Message", rstring(log_string))
