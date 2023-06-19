@@ -113,7 +113,8 @@ def saveCPImagesToOmero(conn, folder, client):
             msg = f"No images ({og_name}) found to attach {name} to: {images}"
             print(msg)
 
-    message = f"Tried attaching {files} to OMERO original images. \n{msg}"
+    print(files)
+    message = f"Tried attaching result images to OMERO original images!\n{msg}"
 
     return message
 
@@ -221,7 +222,7 @@ def upload_zip_to_omero(client, conn, message, slurm_job_id, projects, folder):
 
         for project in projects:
             project.linkAnnotation(zip_annotation)  # link it to project.
-        message += f"Attached zip to {projects}"
+        message += f"Attached zip {folder} to {projects}"
     except Exception as e:
         message += f" Uploading zip failed: {e}"
         print(message)

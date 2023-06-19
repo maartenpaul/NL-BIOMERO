@@ -269,6 +269,7 @@ def runScript():
                             slurm_job_id_list.remove(slurm_job_id)
 
                     # wait for 10 seconds before checking again
+                    conn.keepAlive()  # keep the connection alive
                     timesleep.sleep(10)
 
             # 7. Script output
@@ -391,8 +392,14 @@ def runOMEROScript(client: omscripts.client, svc, script_ids, inputs):
 def importImagesToOmero(client: omscripts.client,
                         conn: BlitzGateway,
                         slurm_job_id: int) -> str:
-    svc = conn.getScriptService()
-    scripts = svc.getScripts()
+    if conn.keepAlive():
+        svc = conn.getScriptService()
+        scripts = svc.getScripts()
+    else:
+        msg = f"Lost connection with OMERO. Slurm done @ {slurm_job_id}"
+        logger.error(msg)
+        raise ConnectionError(msg)
+       
     script_ids = [unwrap(s.id)
                   for s in scripts if unwrap(s.getName()) in IMPORT_SCRIPTS]
     first_id = unwrap(client.getInput("IDs"))[0]

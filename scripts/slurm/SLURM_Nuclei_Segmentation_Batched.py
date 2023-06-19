@@ -12,7 +12,7 @@
 from __future__ import print_function
 import omero
 from omero.grid import JobParams
-from omero.rtypes import rstring, wrap, unwrap, rlong
+from omero.rtypes import rstring, unwrap, rlong, rlist, robject
 from omero.gateway import BlitzGateway
 import omero.scripts as omscripts
 from omero_slurm_client import SlurmClient
@@ -173,7 +173,6 @@ def runScript():
             batch_size = unwrap(client.getInput("Batch_Size"))
             data_ids = unwrap(client.getInput("IDs"))
             batch_ids = chunk(data_ids, batch_size)
-            print(list(batch_ids))
 
             # --------------------------------------------
             # :: 2. Setup the main script for each batch ::
@@ -181,49 +180,68 @@ def runScript():
             # Prepare script inputs
             inputs = client.getInputs()
             processes = {}
-            callbacks = {}
+            # callbacks = {}
             remaining_batches = {i: b for i, b in enumerate(batch_ids)}
             print(remaining_batches)
             for i, batch in remaining_batches.items():
-                inputs["IDs"] = wrap(batch)  # override ids
-                del inputs["Batch_Size"]
+                inputs["IDs"] = rlist([rlong(x)
+                                      for x in batch])  # override ids
                 for k in script_ids:
                     script_id = int(k)
                     # The last parameter is how long to wait as an RInt
                     proc = svc.runScript(script_id, inputs, None)
                     processes[i] = proc
-                    cb = omero.scripts.ProcessCallbackI(client, proc)
-                    callbacks[i] = cb
-            print(processes, callbacks)
             # --------------------------------------------
             # :: 3. Track all the batch jobs ::
             # --------------------------------------------
+            print_result = {
+                'Message': [],
+                'File_Annotation': []
+            }
+            finished = []
             try:
                 # 4. Poll results
-                logger.debug(remaining_batches, processes)
                 while remaining_batches:
                     # loop the remaining processes
-                    for i, proc in processes.items():
-                        cb = callbacks[i]
-                        if cb.block(1):  # Check if finished, or wait x ms
-                            cb.close()
-                            rv = proc.getResults(0)  # "Message"?
-                            log_string += rv
-                            logger.info(
-                                f"Batch {i} - [{remaining_batches[i]}] done: {rv}")
-                            del remaining_batches[i]
+                    for i, process in processes.items():
+                        return_code = process.poll()
+                        if return_code:  # None if not finished
+                            results = process.getResults(0)  # 0 ms; RtypeDict
+                            if 'Message' in results:
+                                print(results['Message'].getValue())
+                                print_result['Message'].append(
+                                    results['Message'].getValue())
+
+                            if 'File_Annotation' in results:
+                                print_result['File_Annotation'].append(
+                                    results['File_Annotation'].getValue())
+
+                            finished.append(i)
+                            if return_code.getValue() == 0:
+                                print(
+                                    f"Batch {i} - [{remaining_batches[i]}] finished.")
+                            else:
+                                print(f"Batch {i} - [{remaining_batches[i]}] failed!")
                         else:
                             pass
 
+                    for i in finished:
+                        del remaining_batches[i]
+                    finished = []
                     # wait for 10 seconds before checking again
+                    conn.keepAlive()  # keep connection alive w/ omero/ice
                     timesleep.sleep(10)
 
             finally:
-                for proc in processes:
+                for proc in processes.values():
                     proc.close(False)  # stop the scripts
 
             # 7. Script output
             client.setOutput("Message", rstring(log_string))
+            client.setOutput("Message",
+                             rstring("\n".join(print_result['Message'])))
+            for i, ann in enumerate(print_result['File_Annotation']):
+                client.setOutput(f"File_Annotation_{i}", robject(ann))
         finally:
             client.closeSession()
 
