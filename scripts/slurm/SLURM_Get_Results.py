@@ -15,7 +15,7 @@ import omero.gateway
 from omero import scripts
 from omero.constants.namespaces import NSCREATED
 from omero.gateway import BlitzGateway
-from omero.rtypes import rstring, robject, unwrap
+from omero.rtypes import rstring, robject, unwrap, wrap
 import os
 import re
 import zipfile
@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 
 _SLURM_JOB_ID = "SLURM Job Id"
 _COMPLETED_JOB = "Completed Job"
+_OUTPUT_ATTACH_PROJECT = "Output - Attach as zip to project?"
+_OUTPUT_ATTACH_OG_IMAGES = "Output - Add as attachment to original images"
 _LOGFILE_PATH_PATTERN_GROUP = "DATA_PATH"
 _LOGFILE_PATH_PATTERN = "Running [\w-]+? Job w\/ .+? \| .+? \| (?P<DATA_PATH>.+?) \|.*"
 
@@ -114,7 +116,7 @@ def saveCPImagesToOmero(conn, folder, client):
             print(msg)
 
     print(files)
-    message = f"Tried attaching result images to OMERO original images!\n{msg}"
+    message = f"\nTried attaching result images to OMERO original images!\n{msg}"
 
     return message
 
@@ -143,15 +145,20 @@ def getUserProjects():
         client.closeSession()
 
 
-def cleanup_tmp_files_locally(message, folder):
+def cleanup_tmp_files_locally(message: str, folder: str, log_file: str) -> str:
     """ Cleanup zip and unzipped files/folders
 
     Args:
         message (String): Script output
         folder (String): Path of folder/zip to remove
+        log_file (String): Path to the logfile to remove
+
+    Returns
+        String: Script output
     """
     try:
         # Cleanup
+        os.remove(log_file)
         os.remove(f"{folder}.zip")
         shutil.rmtree(folder)
     except Exception as e:
@@ -170,9 +177,10 @@ def upload_contents_to_omero(client, conn, message, folder):
         folder (String): Path to folder with content
     """
     try:
-        # upload and link individual images
-        msg = saveCPImagesToOmero(conn=conn, folder=folder, client=client)
-        message += msg
+        if unwrap(client.getInput(_OUTPUT_ATTACH_OG_IMAGES)):
+            # upload and link individual images
+            msg = saveCPImagesToOmero(conn=conn, folder=folder, client=client)
+            message += msg
     except Exception as e:
         message += f" Failed to upload images to OMERO: {e}"
 
@@ -193,6 +201,45 @@ def unzip_zip_locally(message, folder):
         print(f"Unzipped {folder} on the server")
     except Exception as e:
         message += f" Unzip failed: {e}"
+
+    return message
+
+
+def upload_log_to_omero(client, conn, message, slurm_job_id, projects, file):
+    """ Upload a (log/text)file to omero 
+
+    Args:
+        client (_type_): OMERO client
+        conn (_type_): Open connection to OMERO
+        message (String): Script output
+        slurm_job_id (String): ID of the SLURM job the zip came from
+        projects (List): OMERO projects to attach zip to
+        folder (String): path to / name of zip (w/o zip extension)
+    """
+    try:
+        # upload log and link to project(s)
+        print(f"Uploading {file} and attaching to {projects}")
+        mimetype = "text/plain"
+        namespace = NSCREATED + "/SLURM/SLURM_GET_RESULTS"
+        description = f"Log from SLURM job {slurm_job_id}"
+        annotation = conn.createFileAnnfromLocalFile(
+            file, mimetype=mimetype,
+            ns=namespace, desc=description)
+        # Already have other output in this script
+        # But you could add this as output if you wanted log instead
+        # client.setOutput("File_Annotation", robject(annotation._obj))
+
+        # For now, we choose to add as a weblink button
+        obj_id = annotation.getFile().getId()
+        url = f"get_original_file/{obj_id}/"
+        client.setOutput("URL", wrap({"type": "URL", "href": url}))
+
+        for project in projects:
+            project.linkAnnotation(annotation)  # link it to project.
+        message += f"Attached {file} to {projects}"
+    except Exception as e:
+        message += f" Uploading file failed: {e}"
+        print(message)
 
     return message
 
@@ -277,9 +324,34 @@ def runScript():
                          default=True),
             scripts.String(_SLURM_JOB_ID, optional=False, grouping="01.1",
                            values=_oldjobs),
-            scripts.List("Project", optional=False, grouping="02.5",
+            scripts.Bool(_OUTPUT_ATTACH_PROJECT,
+                         optional=False,
+                         grouping="02",
+                         description="Attach all results in zip to a project",
+                         default=True),
+            scripts.List("Project", optional=True, grouping="02.1",
                          description="Project to attach workflow results to",
                          values=_projects),
+            scripts.Bool(_OUTPUT_ATTACH_OG_IMAGES,
+                         optional=False,
+                         grouping="03",
+                         description="Attach all results to original images",
+                         default=True),
+            # scripts.Bool("Output - Add as new images in same dataset",
+            #              optional=False,
+            #              grouping="04",
+            #              description="Add all images to the original dataset",
+            #              default=False),
+            # scripts.Bool("Output - Add as new images in NEW dataset",
+            #              optional=False,
+            #              grouping="05",
+            #              description="Import all result as a new dataset",
+            #              default=False),
+            # scripts.String("New dataset name", optional=True,
+            #                grouping="05.1",
+            #                description="Name for the new dataset w/ results",
+            #                default="My_Results"),
+
             namespaces=[omero.constants.namespaces.NSDYNAMIC],
         )
 
@@ -310,10 +382,15 @@ def runScript():
                 # Copy file to server
                 tup = slurmClient.get_logfile_from_slurm(
                     slurm_job_id)
-                (local_tmp_storage, export_file, get_result) = tup
+                (local_tmp_storage, log_file, get_result) = tup
                 message += "\nSuccesfully copied logfile."
                 print(message)
                 print(get_result.__dict__)
+                
+                # Upload logfile to Omero as Original File
+                message = upload_log_to_omero(
+                    client, conn, message,
+                    slurm_job_id, projects, log_file)
 
                 # Read file for data location
                 data_location = slurmClient.extract_data_location_from_log(
@@ -341,9 +418,10 @@ def runScript():
 
                         folder = f"{local_tmp_storage}/{filename}"
 
-                        message = upload_zip_to_omero(
-                            client, conn, message,
-                            slurm_job_id, projects, folder)
+                        if unwrap(client.getInput(_OUTPUT_ATTACH_PROJECT)):
+                            message = upload_zip_to_omero(
+                                client, conn, message,
+                                slurm_job_id, projects, folder)
 
                         message = unzip_zip_locally(message, folder)
 
@@ -351,7 +429,7 @@ def runScript():
                             client, conn, message, folder)
 
                         message = cleanup_tmp_files_locally(
-                            message, folder)
+                            message, folder, log_file)
 
                         clean_result = slurmClient.cleanup_tmp_files(
                             slurm_job_id,

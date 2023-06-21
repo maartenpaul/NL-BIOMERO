@@ -49,7 +49,7 @@ def runScript():
         # and populated with the currently selected Image(s)/Dataset(s)
         params = JobParams()
         params.authors = ["Torec Luik"]
-        params.version = "0.0.8"
+        params.version = "0.1.0"
         params.description = f'''Script to run nuclei segmentation on slurm
         cluster.
 
@@ -106,7 +106,7 @@ def runScript():
             for param_incr, (k, param) in enumerate(_workflow_params[
                     wf].items()):
                 print(param_incr, k, param)
-                logging.info(param)
+                logger.info(param)
                 # Convert the parameter from cy(tomine)type to om(ero)type
                 omtype_param = slurmClient.convert_cytype_to_omtype(
                     param["cytype"],
@@ -140,7 +140,7 @@ def runScript():
         # 5. When completed, pull and upload data to Omero
         try:
             # log_string will be output in the Omero Web UI
-            log_string = ""
+            UI_messages = ""
             # Check if user actually selected (a version of) a workflow to run
             selected_workflows = {wf_name: unwrap(
                 client.getInput(wf_name)) for wf_name in workflows}
@@ -169,7 +169,8 @@ def runScript():
             rv = exportImageToSLURM(client, conn, zipfile)
             print(f"Ran data export: {rv.keys()}, {rv}")
             if 'Message' in rv:
-                log_string += f"Exported data. {rv['Message'].getValue()}"
+                print(rv['Message'].getValue())  # log
+            UI_messages += "Exported data to Slurm. "
 
             # --------------------------------------------
             # :: 2. Unpack data on Slurm ::
@@ -183,17 +184,17 @@ def runScript():
                 # Quick git pull on Slurm for latest version of job scripts
                 update_result = slurmClient.update_slurm_scripts()
                 print(update_result.__dict__)
-                
+
                 # --------------------------------------------
                 # :: 3. Create Slurm jobs for all workflows ::
                 # --------------------------------------------
                 for wf_name in workflows:
                     if unwrap(client.getInput(wf_name)):
-                        log_string, slurm_job_id = run_workflow(
+                        UI_messages, slurm_job_id = run_workflow(
                             slurmClient,
                             _workflow_params[wf_name],
                             client,
-                            log_string,
+                            UI_messages,
                             zipfile,
                             email,
                             wf_name)
@@ -209,25 +210,25 @@ def runScript():
                         job_status_dict, _ = slurmClient.check_job_status(
                             slurm_job_id_list)
                     except Exception as e:
-                        log_string += f" ERROR WITH JOB: {e}"
+                        UI_messages += f" ERROR WITH JOB: {e}"
 
                     for slurm_job_id, job_state in job_status_dict.items():
                         print(f"Job {slurm_job_id} is {job_state}.")
 
                         lm = f"-- Status of batch job\
                             {slurm_job_id}: {job_state}"
-                        logging.debug(lm)
+                        logger.debug(lm)
                         print(lm)
                         if job_state == "TIMEOUT":
                             log_msg = f"Job {slurm_job_id} is TIMEOUT."
-                            log_string += log_msg
+                            UI_messages += log_msg
                             # TODO resubmit? add an option?
                             # new_job_id = slurmClient.resubmit_job(
                             #     slurm_job_id)
                             # log_msg = f"Job {slurm_job_id} has been
                             # resubmitted ({new_job_id})."
                             print(log_msg)
-                            logging.warning(log_msg)
+                            logger.warning(log_msg)
                             # log_string += log_msg
                             slurm_job_id_list.remove(slurm_job_id)
                             # slurm_job_id_list.append(new_job_id)
@@ -236,36 +237,41 @@ def runScript():
                             # 6. Store results in OMERO
                             rv_imp = importImagesToOmero(
                                 client, conn, slurm_job_id)
-                            if rv:
+                            if rv_imp:
                                 log_msg = f"{rv_imp['Message'].getValue()}"
+                                if rv_imp['URL']:
+                                    client.setOutput("URL", rv_imp['URL'])
+                                if rv_imp["File_Annotation"]:
+                                    client.setOutput("File_Annotation",
+                                                     rv_imp["File_Annotation"])
                             else:
                                 log_msg = "Attempted to import images to\
                                     Omero."
                             print(log_msg)
-                            logging.info(log_msg)
-                            log_string += log_msg
+                            logger.info(log_msg)
+                            UI_messages += " Imported images to Omero. "
                             slurm_job_id_list.remove(slurm_job_id)
                         elif (job_state.startswith("CANCELLED")
                                 or job_state == "FAILED"):
                             # Remove from future checks
                             log_msg = f"Job {slurm_job_id} is {job_state}."
                             print(log_msg)
-                            logging.warning(log_msg)
-                            log_string += log_msg
+                            logger.warning(log_msg)
+                            UI_messages += log_msg
                             slurm_job_id_list.remove(slurm_job_id)
                         elif (job_state == "PENDING"
                                 or job_state == "RUNNING"):
                             # expected
                             log_msg = f"Job {slurm_job_id} is busy..."
                             print(log_msg)
-                            logging.debug(log_msg)
+                            logger.debug(log_msg)
                             continue
                         else:
                             log_msg = f"Oops! State of job {slurm_job_id}\
                                 is unknown: {job_state}. Stop tracking."
                             print(log_msg)
-                            logging.warning(log_msg)
-                            log_string += log_msg
+                            logger.warning(log_msg)
+                            UI_messages += log_msg
                             slurm_job_id_list.remove(slurm_job_id)
 
                     # wait for 10 seconds before checking again
@@ -273,7 +279,7 @@ def runScript():
                     timesleep.sleep(10)
 
             # 7. Script output
-            client.setOutput("Message", rstring(log_string))
+            client.setOutput("Message", rstring(UI_messages))
         finally:
             client.closeSession()
 
@@ -281,7 +287,7 @@ def runScript():
 def run_workflow(slurmClient: SlurmClient,
                  workflow_params,
                  client,
-                 log_string: str,
+                 UI_messages: str,
                  zipfile,
                  email,
                  name):
@@ -305,7 +311,7 @@ def run_workflow(slurmClient: SlurmClient,
             print(f"Error running {name} job:",
                   cp_result.stderr)
         else:
-            log_string += f"Submitted {name} to Slurm\
+            UI_messages += f"Submitted {name} to Slurm\
                 as batch job {slurm_job_id}."
 
             job_status_dict, poll_result = slurmClient.check_job_status(
@@ -316,12 +322,14 @@ def run_workflow(slurmClient: SlurmClient,
                 print("Error checking job status:",
                       poll_result.stderr)
             else:
-                log_string += f"\n{job_status_dict[slurm_job_id]}"
+                log_msg = f"\n{job_status_dict[slurm_job_id]}"
+                logger.info(log_msg)
+                print(log_msg)
     except Exception as e:
-        log_string += f" ERROR WITH JOB: {e}"
-        print(log_string)
-        raise SSHException(log_string)
-    return log_string, slurm_job_id
+        UI_messages += f" ERROR WITH JOB: {e}"
+        print(UI_messages)
+        raise SSHException(UI_messages)
+    return UI_messages, slurm_job_id
 
 
 def getOmeroEmail(client, conn):
@@ -399,7 +407,7 @@ def importImagesToOmero(client: omscripts.client,
         msg = f"Lost connection with OMERO. Slurm done @ {slurm_job_id}"
         logger.error(msg)
         raise ConnectionError(msg)
-       
+
     script_ids = [unwrap(s.id)
                   for s in scripts if unwrap(s.getName()) in IMPORT_SCRIPTS]
     first_id = unwrap(client.getInput("IDs"))[0]

@@ -149,14 +149,14 @@ def runScript():
 
 def check_job(slurmClient, message, slurm_job_id):
     try:
-        poll_result = slurmClient.check_job_status(
-            slurm_job_id=slurm_job_id)
-        print(poll_result.stdout)
+        job_status_dict, poll_result = slurmClient.check_job_status(
+            slurm_job_ids=[slurm_job_id])
+        print(job_status_dict, poll_result.stdout)
         if not poll_result.ok:
             print("Error checking job status:", poll_result.stderr)
             message += f"\nError checking job status: {poll_result.stderr}"
         else:
-            message += f"\n{poll_result.stdout}"
+            message += f"\n{job_status_dict}"
     except Exception as e:
         message += f" Show job failed: {e}"
     return message

@@ -10,6 +10,7 @@
 # Example OMERO.script to run multiple segmentation images on Slurm.
 
 from __future__ import print_function
+import datetime
 import omero
 from omero.grid import JobParams
 from omero.rtypes import rstring, unwrap, rlong, rlist, robject
@@ -19,6 +20,7 @@ from omero_slurm_client import SlurmClient
 import logging
 from itertools import islice
 import time as timesleep
+import pprint
 
 logger = logging.getLogger(__name__)
 
@@ -46,9 +48,9 @@ def runScript():
         # and populated with the currently selected Image(s)/Dataset(s)
         params = JobParams()
         params.authors = ["Torec Luik"]
-        params.version = "0.0.1"
+        params.version = "0.1.0"
         params.description = f'''Script to run nuclei segmentation on slurm
-        cluster, automatically batched.
+        cluster, batched.
 
         This runs a script remotely on your Slurm cluster.
         Connection ready? {slurmClient.validate()}
@@ -103,10 +105,11 @@ def runScript():
                                     values=_workflow_available_versions[wf])
             input_list.append(wf_v)
             # Create a script parameter for all workflow parameters
+            print(f"\nGenerated these parameters for {wf} descriptors:\n")
             for param_incr, (k, param) in enumerate(_workflow_params[
                     wf].items()):
-                print(param_incr, k, param)
-                logging.info(param)
+                print(param_incr, param)
+                logger.info(param)
                 # Convert the parameter from cy(tomine)type to om(ero)type
                 omtype_param = slurmClient.convert_cytype_to_omtype(
                     param["cytype"],
@@ -133,14 +136,10 @@ def runScript():
         # Here we actually run the chosen workflows on the chosen data
         # on Slurm.
         # Steps:
-        # 1. Push selected data to Slurm
-        # 2. Unpack data on Slurm
-        # 3. Create Slurm jobs for all workflows
-        # 4. Check Slurm job statuses
-        # 5. When completed, pull and upload data to Omero
+        # 1. Split data into batches
+        # 2. Run (omero) workflow script per batch
+        # 3. Track (omero) jobs, join log outputs
         try:
-            # log_string will be output in the Omero Web UI
-            log_string = ""
             # Check if user actually selected (a version of) a workflow to run
             selected_workflows = {wf_name: unwrap(
                 client.getInput(wf_name)) for wf_name in workflows}
@@ -167,22 +166,32 @@ def runScript():
                 raise ValueError(
                     f"Cannot export images to Slurm: scripts ({PROC_SCRIPTS})\
                         not found in ({[unwrap(s.getName()) for s in scripts]}) ")
+            print('''
             # --------------------------------------------
             # :: 1. Split data into batches ::
             # --------------------------------------------
+            ''')
             batch_size = unwrap(client.getInput("Batch_Size"))
             data_ids = unwrap(client.getInput("IDs"))
             batch_ids = chunk(data_ids, batch_size)
-
-            # --------------------------------------------
-            # :: 2. Setup the main script for each batch ::
-            # --------------------------------------------
-            # Prepare script inputs
             inputs = client.getInputs()
             processes = {}
-            # callbacks = {}
             remaining_batches = {i: b for i, b in enumerate(batch_ids)}
-            print(remaining_batches)
+            print("#--------------------------------------------#")
+            print(f"Batch Size: {batch_size}")
+            print(f"Total items: {len(data_ids)}")
+            formatted_batches = pprint.pformat(remaining_batches,
+                                               depth=2,
+                                               compact=True)
+            print(f"Batches: {formatted_batches}")
+            print("#--------------------------------------------#")
+
+            print('''
+            # --------------------------------------------
+            # :: 2. Run workflow(s) per batch ::
+            # --------------------------------------------
+            ''')
+            print(f"Starting batch scripts at {datetime.datetime.now()}")
             for i, batch in remaining_batches.items():
                 inputs["IDs"] = rlist([rlong(x)
                                       for x in batch])  # override ids
@@ -191,10 +200,15 @@ def runScript():
                     # The last parameter is how long to wait as an RInt
                     proc = svc.runScript(script_id, inputs, None)
                     processes[i] = proc
+                    print(f"Started script {k} at\
+                        {datetime.datetime.now()}:\
+                        Omero Job ID {proc.getJob()._id}")
+            print('''
             # --------------------------------------------
             # :: 3. Track all the batch jobs ::
             # --------------------------------------------
-            print_result = {
+            ''')
+            UI_messages = {
                 'Message': [],
                 'File_Annotation': []
             }
@@ -203,17 +217,19 @@ def runScript():
                 # 4. Poll results
                 while remaining_batches:
                     # loop the remaining processes
-                    for i, process in processes.items():
+                    for i, batch in remaining_batches.items():
+                        process = processes[i]
                         return_code = process.poll()
                         if return_code:  # None if not finished
                             results = process.getResults(0)  # 0 ms; RtypeDict
                             if 'Message' in results:
                                 print(results['Message'].getValue())
-                                print_result['Message'].append(
-                                    results['Message'].getValue())
+                                UI_messages['Message'].extend(
+                                    [f">> Batch {i}: ",
+                                     results['Message'].getValue()])
 
                             if 'File_Annotation' in results:
-                                print_result['File_Annotation'].append(
+                                UI_messages['File_Annotation'].append(
                                     results['File_Annotation'].getValue())
 
                             finished.append(i)
@@ -221,26 +237,32 @@ def runScript():
                                 print(
                                     f"Batch {i} - [{remaining_batches[i]}] finished.")
                             else:
-                                print(f"Batch {i} - [{remaining_batches[i]}] failed!")
+                                print(
+                                    f"Batch {i} - [{remaining_batches[i]}] failed!")
                         else:
                             pass
-
+                    
+                    # clear out our tracking list, to end while loop at some point
                     for i in finished:
                         del remaining_batches[i]
                     finished = []
                     # wait for 10 seconds before checking again
                     conn.keepAlive()  # keep connection alive w/ omero/ice
                     timesleep.sleep(10)
-
+            except Exception as e:
+                print(e)
+                logger.warning(e)
             finally:
+                print("\n============")
+                print("\nFinished all batches.")
+                print("\n============")
                 for proc in processes.values():
                     proc.close(False)  # stop the scripts
 
             # 7. Script output
-            client.setOutput("Message", rstring(log_string))
             client.setOutput("Message",
-                             rstring("\n".join(print_result['Message'])))
-            for i, ann in enumerate(print_result['File_Annotation']):
+                             rstring("\n".join(UI_messages['Message'])))
+            for i, ann in enumerate(UI_messages['File_Annotation']):
                 client.setOutput(f"File_Annotation_{i}", robject(ann))
         finally:
             client.closeSession()
