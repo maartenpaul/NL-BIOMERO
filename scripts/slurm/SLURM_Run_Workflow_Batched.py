@@ -24,7 +24,7 @@ import pprint
 
 logger = logging.getLogger(__name__)
 
-IMAGE_EXPORT_SCRIPT = "SLURM_Nuclei_Segmentation.py"
+IMAGE_EXPORT_SCRIPT = "SLURM_Run_Workflow.py"
 PROC_SCRIPTS = [IMAGE_EXPORT_SCRIPT]
 DATATYPES = [rstring('Image')]
 
@@ -49,13 +49,13 @@ def runScript():
         params = JobParams()
         params.authors = ["Torec Luik"]
         params.version = "0.1.0"
-        params.description = f'''Script to run nuclei segmentation on slurm
+        params.description = f'''Script to run workflows on slurm
         cluster, batched.
 
         This runs a script remotely on your Slurm cluster.
         Connection ready? {slurmClient.validate()}
         '''
-        params.name = 'Slurm Nuclei Segmentation (Batched)'
+        params.name = 'Slurm Workflows (Batched)'
         params.contact = 't.t.luik@amsterdamumc.nl'
         params.institutions = ["Amsterdam UMC"]
         params.authorsInstitutions = [[1]]
