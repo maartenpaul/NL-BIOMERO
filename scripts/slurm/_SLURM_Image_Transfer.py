@@ -366,6 +366,19 @@ def batch_image_export(conn, script_params, slurmClient: SlurmClient):
         if not images:
             message += "No image found in dataset(s)"
             return None, message
+    elif data_type == 'Plate':
+        images = []
+        wells = []
+        for plate in objects:
+            wells.extend(list(plate.listChildren()))
+        for well in wells:
+            nr_samples = well.countWellSample()
+            for index in range(0, nr_samples):
+                image = well.getImage(index)
+                images.append(image)            
+        if not images:
+            message += "No image found in plate(s)"
+            return None, message
     else:
         images = objects
 
@@ -503,8 +516,8 @@ def run_script():
 
     with SlurmClient.from_config() as slurmClient:
 
-        data_types = [rstring('Dataset'), rstring('Image')]
-        formats = [rstring('JPEG'), rstring('PNG'), rstring('TIFF'),
+        data_types = [rstring('Dataset'), rstring('Image'), rstring('Plate')]
+        formats = [rstring('TIFF'),
                    rstring('OME-TIFF')]
         default_z_option = 'Default-Z (last-viewed)'
         z_choices = [rstring(default_z_option),

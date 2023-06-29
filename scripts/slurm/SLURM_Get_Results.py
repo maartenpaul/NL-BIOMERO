@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 _SLURM_JOB_ID = "SLURM Job Id"
 _COMPLETED_JOB = "Completed Job"
 _OUTPUT_ATTACH_PROJECT = "Output - Attach as zip to project?"
+_OUTPUT_ATTACH_PLATE = "Output - Attach as zip to plate?"
 _OUTPUT_ATTACH_OG_IMAGES = "Output - Add as attachment to original images"
 _LOGFILE_PATH_PATTERN_GROUP = "DATA_PATH"
 _LOGFILE_PATH_PATTERN = "Running [\w-]+? Job w\/ .+? \| .+? \| (?P<DATA_PATH>.+?) \|.*"
@@ -55,7 +56,7 @@ def getOriginalFilename(name):
     Args:
         name (String): name of processed file
     """
-    match = re.match(pattern=".+\/(.+\.[A-Za-z]+).+\.tiff", string=name)
+    match = re.match(pattern=".+\/(.+\.[A-Za-z]+).+\.[tiff|png]", string=name)
     if match:
         name = match.group(1)
 
@@ -75,7 +76,7 @@ def saveCPImagesToOmero(conn, folder, client):
     """
     all_files = glob.iglob(folder+'**/**', recursive=True)
     files = [f for f in all_files if os.path.isfile(f)
-             and f.endswith('.tiff')]
+             and (f.endswith('.tiff') or f.endswith('.png'))]
     # more_files = [f for f in os.listdir(f"{folder}/out") if os.path.isfile(f)
     #               and f.endswith('.tiff')]  # out folder
     # files += more_files
@@ -93,8 +94,9 @@ def saveCPImagesToOmero(conn, folder, client):
         if images:
             try:
                 # attach the masked image to the original image
+                ext = os.path.splitext(name)[1][1:]
                 file_ann = conn.createFileAnnfromLocalFile(
-                    name, mimetype="image/tiff",
+                    name, mimetype=f"image/{ext}",
                     ns=namespace, desc=f"Result from analysis {folder}")
                 print(f"Attaching {name} to image {og_name}")
                 # image = load_image(conn, image_id)
@@ -119,6 +121,25 @@ def saveCPImagesToOmero(conn, folder, client):
     message = f"\nTried attaching result images to OMERO original images!\n{msg}"
 
     return message
+
+
+def getUserPlates():
+    try:
+        client = omero.client()
+        client.createSession()
+        conn = omero.gateway.BlitzGateway(client_obj=client)
+        conn.SERVICE_OPTS.setOmeroGroup(-1)
+        objparams = [rstring('%d: %s' % (d.id, d.getName()))
+                     for d in conn.getObjects('Plate')
+                     if type(d) == omero.gateway.PlateWrapper]
+        #  if type(d) == omero.model.ProjectI
+        if not objparams:
+            objparams = [rstring('<No objects found>')]
+        return objparams
+    except Exception as e:
+        return ['Exception: %s' % e]
+    finally:
+        client.closeSession()
 
 
 def getUserProjects():
@@ -313,6 +334,7 @@ def runScript():
 
         _oldjobs = slurmClient.list_completed_jobs()
         _projects = getUserProjects()
+        _plates = getUserPlates()
 
         client = scripts.client(
             'Slurm Get Results',
@@ -337,6 +359,14 @@ def runScript():
                          grouping="03",
                          description="Attach all results to original images",
                          default=True),
+            scripts.Bool(_OUTPUT_ATTACH_PLATE,
+                         optional=False,
+                         grouping="04",
+                         description="Attach all results in zip to a plate",
+                         default=False),
+            scripts.List("Plate", optional=True, grouping="04.1",
+                         description="Plate to attach workflow results to",
+                         values=_plates),
             # scripts.Bool("Output - Add as new images in same dataset",
             #              optional=False,
             #              grouping="04",
@@ -372,11 +402,18 @@ def runScript():
                 message += f"\n{result.stdout}"
 
             # Pull project from Omero
-            project_ids = unwrap(client.getInput("Project"))
-            print(project_ids)
-            projects = [conn.getObject("Project", p.split(":")[0])
-                        for p in project_ids]
-
+            projects = []  # note, can also be plate now
+            if unwrap(client.getInput(_OUTPUT_ATTACH_PROJECT)):
+                project_ids = unwrap(client.getInput("Project"))
+                print(project_ids)
+                projects = [conn.getObject("Project", p.split(":")[0])
+                            for p in project_ids]
+            if unwrap(client.getInput(_OUTPUT_ATTACH_PLATE)):
+                plate_ids = unwrap(client.getInput("Plate"))
+                print(plate_ids)
+                projects = [conn.getObject("Plate", p.split(":")[0])
+                            for p in plate_ids]
+            
             # Job log
             if unwrap(client.getInput(_COMPLETED_JOB)):
                 # Copy file to server
@@ -386,7 +423,7 @@ def runScript():
                 message += "\nSuccesfully copied logfile."
                 print(message)
                 print(get_result.__dict__)
-                
+
                 # Upload logfile to Omero as Original File
                 message = upload_log_to_omero(
                     client, conn, message,
@@ -418,7 +455,8 @@ def runScript():
 
                         folder = f"{local_tmp_storage}/{filename}"
 
-                        if unwrap(client.getInput(_OUTPUT_ATTACH_PROJECT)):
+                        if (unwrap(client.getInput(_OUTPUT_ATTACH_PROJECT)) or
+                                unwrap(client.getInput(_OUTPUT_ATTACH_PLATE))):
                             message = upload_zip_to_omero(
                                 client, conn, message,
                                 slurm_job_id, projects, folder)
