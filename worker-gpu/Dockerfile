@@ -11,7 +11,8 @@ RUN yum -y install git
 # RUN git clone https://github.com/NL-BioImaging/omero-slurm-client.git
 RUN python3 -m venv $VIRTUAL_ENV \
     && python3 -m pip install --upgrade pip \
-    && python3 -m pip install 'git+https://github.com/NL-BioImaging/omero-slurm-client.git'
+    && python3 -m pip install 'git+https://github.com/NL-BioImaging/omero-slurm-client.git' \
+    && python3 -m pip install ezomero==1.1.1 aicsimageio==3.3.1
 # SSH library fabric and omero-slurm-client
 
 ## Create extra Python environments

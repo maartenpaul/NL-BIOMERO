@@ -28,6 +28,56 @@ IMAGE_IMPORT_SCRIPT = "SLURM_Get_Results.py"
 EXPORT_SCRIPTS = [IMAGE_EXPORT_SCRIPT]
 IMPORT_SCRIPTS = [IMAGE_IMPORT_SCRIPT]
 DATATYPES = [rstring('Dataset'), rstring('Image'), rstring('Plate')]
+NO = "--NO THANK YOU--"
+OUTPUT_RENAME = "Rename imported images"
+OUTPUT_PARENT = "Zip attachment to parent"
+OUTPUT_ATTACH = "Attach to original images"
+OUTPUT_NEW_DATASET = "Import into NEW Dataset"
+OUTPUT_OPTIONS = [OUTPUT_RENAME, OUTPUT_PARENT, OUTPUT_NEW_DATASET,
+                  OUTPUT_ATTACH]
+
+
+def getUserPlates():
+    try:
+        client = omero.client()
+        client.createSession()
+        conn = omero.gateway.BlitzGateway(client_obj=client)
+        conn.SERVICE_OPTS.setOmeroGroup(-1)
+        objparams = [rstring('%d: %s' % (d.id, d.getName()))
+                     for d in conn.getObjects('Plate')
+                     if type(d) == omero.gateway.PlateWrapper]
+        #  if type(d) == omero.model.ProjectI
+        if not objparams:
+            objparams = [rstring('<No objects found>')]
+        return objparams
+    except Exception as e:
+        return ['Exception: %s' % e]
+    finally:
+        client.closeSession()
+
+
+def getUserProjects():
+    """ Get (OMERO) Projects that user has access to.
+
+    Returns:
+        List: List of project ids and names
+    """
+    try:
+        client = omero.client()
+        client.createSession()
+        conn = omero.gateway.BlitzGateway(client_obj=client)
+        conn.SERVICE_OPTS.setOmeroGroup(-1)
+        objparams = [rstring('%d: %s' % (d.id, d.getName()))
+                     for d in conn.getObjects('Project')
+                     if type(d) == omero.gateway.ProjectWrapper]
+        #  if type(d) == omero.model.ProjectI
+        if not objparams:
+            objparams = [rstring('<No objects found>')]
+        return objparams
+    except Exception as e:
+        return ['Exception: %s' % e]
+    finally:
+        client.closeSession()
 
 
 def runScript():
@@ -50,11 +100,21 @@ def runScript():
         params = JobParams()
         params.authors = ["Torec Luik"]
         params.version = "0.1.0"
-        params.description = f'''Script to run a workflow on the Slurm
-        cluster.
+        params.description = f'''Script to run a workflow on the Slurm cluster.
 
         This runs a script remotely on your Slurm cluster.
-        Connection ready? {slurmClient.validate()}
+        Connection ready? << {slurmClient.validate()} >>
+        
+        Select one or more of the workflows below to run them on the given
+        Datasets / Images / Plates.
+        
+        Parameters for workflows are automatically generated from their Github.
+        Versions are only those currently available on your Slurm cluster.        
+        
+        Results will be imported back into OMERO with the selected settings.
+        
+        If you need different Slurm settings (like memory increase), ask your
+        OMERO admin.
         '''
         params.name = 'Slurm Workflow'
         params.contact = 't.t.luik@amsterdamumc.nl'
@@ -63,6 +123,7 @@ def runScript():
         # Default script parameters that we want to know for all workflows:
         # input and output.
         email_descr = "Do you want an email if your job is done or cancelled?"
+
         input_list = [
             omscripts.String(
                 "Data_Type", optional=False, grouping="01.1",
@@ -76,6 +137,30 @@ def runScript():
             omscripts.Bool("E-mail", grouping="01.3",
                            description=email_descr,
                            default=True),
+            omscripts.Bool("Select how to import your results (one or more)",
+                           optional=False,
+                           grouping="02",
+                           description="Select one or more options below:",
+                           default=True),
+            omscripts.String(OUTPUT_RENAME,
+                             optional=True,
+                             grouping="02.1",
+                             description="A new name for the imported images. E.g. {original_file}NucleiLabels.{ext}",
+                             default=NO),
+            omscripts.Bool(OUTPUT_PARENT,
+                           optional=True, grouping="02.2",
+                           description="Attach zip to parent project/plate",
+                           default=False),
+            omscripts.Bool(OUTPUT_ATTACH,
+                           optional=True,
+                           grouping="02.4",
+                           description="Attach all resulting images to original images as attachments",
+                           default=False),
+            omscripts.String(OUTPUT_NEW_DATASET, optional=True,
+                             grouping="02.5",
+                             description="Name for the new dataset w/ result images",
+                             default=NO),
+
         ]
         # Generate script parameters for all our workflows
         (wf_versions, _) = slurmClient.get_all_image_versions_and_data_files()
@@ -86,7 +171,7 @@ def runScript():
         workflows = wf_versions.keys()
         for group_incr, wf in enumerate(workflows):
             # increment per wf, determines UI order
-            parameter_group = f"0{group_incr+2}"
+            parameter_group = f"0{group_incr+3}"
             _workflow_available_versions[wf] = wf_versions.get(
                 wf, na)
             # Get the workflow parameters (dynamically) from their repository
@@ -141,11 +226,14 @@ def runScript():
         try:
             # log_string will be output in the Omero Web UI
             UI_messages = ""
+            errormsg = None
             # Check if user actually selected (a version of) a workflow to run
             selected_workflows = {wf_name: unwrap(
                 client.getInput(wf_name)) for wf_name in workflows}
             if not any(selected_workflows.values()):
-                raise ValueError("ERROR: Please select at least 1 workflow!")
+                errormsg = "ERROR: Please select at least 1 workflow!"
+                client.setOutput("Message", rstring(errormsg))
+                raise ValueError(errormsg)
             version_errors = ""
             for wf, selected in selected_workflows.items():
                 selected_version = unwrap(client.getInput(f"{wf}_Version"))
@@ -154,6 +242,25 @@ def runScript():
                     version_errors += f"ERROR: No version for '{wf}'! \n"
             if version_errors:
                 raise ValueError(version_errors)
+            # Check if user actually selected the output option
+            selected_output = {}
+            for output_option in OUTPUT_OPTIONS:
+                selected_op = unwrap(client.getInput(output_option))
+                if (not selected_op) or (
+                    selected_op == NO) or (
+                        type(selected_op) == list and NO in selected_op):
+                    selected_output[output_option] = False
+                else:
+                    selected_output[output_option] = True
+                    print(f"Selected: {output_option} >> [{selected_op}]")
+            if not any(selected_output.values()):
+                errormsg = "ERROR: Please select at least 1 output method!"
+                client.setOutput("Message", rstring(errormsg))
+                raise ValueError(errormsg)
+            else:
+                print(f"Output options chosen: {selected_output}")
+                logger.info(f"Output options chosen: {selected_output}")
+
             # Connect to Omero
             conn = BlitzGateway(client_obj=client)
             conn.SERVICE_OPTS.setOmeroGroup(-1)
@@ -236,14 +343,22 @@ def runScript():
                             # 5. Retrieve SLURM images
                             # 6. Store results in OMERO
                             rv_imp = importImagesToOmero(
-                                client, conn, slurm_job_id)
+                                client, conn, slurm_job_id, selected_output)
+                            
                             if rv_imp:
                                 log_msg = f"{rv_imp['Message'].getValue()}"
-                                if rv_imp['URL']:
-                                    client.setOutput("URL", rv_imp['URL'])
-                                if rv_imp["File_Annotation"]:
-                                    client.setOutput("File_Annotation",
-                                                     rv_imp["File_Annotation"])
+                                try:
+                                    if rv_imp['URL']:
+                                        client.setOutput("URL", rv_imp['URL'])
+                                except KeyError:
+                                    log_msg += "|No URL|"
+                                try:
+                                    if rv_imp["File_Annotation"]:
+                                        client.setOutput("File_Annotation",
+                                                         rv_imp[
+                                                             "File_Annotation"])
+                                except KeyError:
+                                    log_msg += "|No Annotation|"
                             else:
                                 log_msg = "Attempted to import images to\
                                     Omero."
@@ -399,7 +514,8 @@ def runOMEROScript(client: omscripts.client, svc, script_ids, inputs):
 
 def importImagesToOmero(client: omscripts.client,
                         conn: BlitzGateway,
-                        slurm_job_id: int) -> str:
+                        slurm_job_id: int,
+                        selected_output: list) -> str:
     if conn.keepAlive():
         svc = conn.getScriptService()
         scripts = svc.getScripts()
@@ -413,51 +529,74 @@ def importImagesToOmero(client: omscripts.client,
     first_id = unwrap(client.getInput("IDs"))[0]
     print(script_ids, first_id, unwrap(client.getInput("Data_Type")))
     opts = {}
-    # get parent dataset and project
-    data_type = unwrap(client.getInput("Data_Type"))
+    inputs = {"Completed Job": rbool(True),
+              "SLURM Job Id": rstring(str(slurm_job_id))
+              }
 
-    if data_type == 'Image':
-        datasets = [d.id for d in conn.getObjects(
-            'Dataset', opts={'image': first_id})]
-        plates = [d.id for d in conn.getObjects(
-            'Plate', opts={'image': first_id})]
-        print(f"Datasets:{datasets} Plates:{plates}")
-        if len(plates) > len(datasets):
-            first_id = plates[0]
-            data_type = 'Plate'
+    if selected_output[OUTPUT_PARENT]:
+        # get parent dataset and project
+        data_type = unwrap(client.getInput("Data_Type"))
+
+        if data_type == 'Image':
+            datasets = [d.id for d in conn.getObjects(
+                'Dataset', opts={'image': first_id})]
+            plates = [d.id for d in conn.getObjects(
+                'Plate', opts={'image': first_id})]
+            print(f"Datasets:{datasets} Plates:{plates}")
+            if len(plates) > len(datasets):
+                first_id = plates[0]
+                data_type = 'Plate'
+            else:
+                first_id = datasets[0]
+                data_type = 'Dataset'
+
+        if data_type == 'Dataset':
+            print(f"Adding to dataset {first_id}")
+            opts['dataset'] = first_id
+
+            print(opts)
+            projects = [rstring('%d: %s' % (d.id, d.getName()))
+                        for d in conn.getObjects('Project', opts=opts)]
+            print(projects)
+            inputs["Project"] = rlist(projects)
+        elif data_type == 'Plate':
+            print(f"Adding to plate {first_id}")
+            opts['plate'] = first_id
+            print(opts)
+            plates = [rstring('%d: %s' % (d.id, d.getName()))
+                      for d in conn.getObjects('Plate', opts=opts)]
+            print(plates)
+            inputs["Output - Attach as zip to project?"] = rbool(False)
+            inputs["Output - Attach as zip to plate?"] = rbool(True)
+            inputs["Plate"] = rlist(plates)
         else:
-            first_id = datasets[0]
-            data_type = 'Dataset'
-
-    if data_type == 'Dataset':
-        print(f"Adding to dataset {first_id}")
-        opts['dataset'] = first_id
-
-        print(opts)
-        projects = [rstring('%d: %s' % (d.id, d.getName()))
-                    for d in conn.getObjects('Project', opts=opts)]
-        print(projects)
-        inputs = {"Completed Job": rbool(True),
-                  "SLURM Job Id": rstring(str(slurm_job_id)),
-                  "Project": rlist(projects),
-                  }
-    elif data_type == 'Plate':
-        print(f"Adding to plate {first_id}")
-        opts['plate'] = first_id
-        print(opts)
-        plates = [rstring('%d: %s' % (d.id, d.getName()))
-                  for d in conn.getObjects('Plate', opts=opts)]
-        print(plates)
-        inputs = {"Completed Job": rbool(True),
-                  "SLURM Job Id": rstring(str(slurm_job_id)),
-                  "Output - Attach as zip to project?": rbool(False),
-                  "Output - Attach as zip to plate?": rbool(True),
-                  "Plate": rlist(plates),
-                  }
+            raise ValueError(f"Cannot handle {data_type}")
     else:
-        raise ValueError(f"Cannot handle {data_type}")
+        inputs["Output - Attach as zip to project?"] = rbool(False)
+        inputs["Output - Attach as zip to plate?"] = rbool(False)
 
-    print(f"Running script {script_ids} with inputs: {inputs}")
+    if selected_output[OUTPUT_RENAME]:
+        inputs["Output - Rename imported files"] = rbool(True)
+        inputs["Rename"] = client.getInput(OUTPUT_RENAME)
+    else:
+        inputs["Output - Rename imported files"] = rbool(False)
+
+    if selected_output[OUTPUT_NEW_DATASET]:
+        inputs["Output - Add as new images in NEW dataset"] = rbool(True)
+        inputs["New Dataset"] = client.getInput(OUTPUT_NEW_DATASET)
+    else:
+        inputs["Output - Add as new images in NEW dataset"] = rbool(False)
+
+    if selected_output[OUTPUT_ATTACH]:
+        inputs[
+            "Output - Add as attachment to original images"
+            ] = rbool(True)
+    else:
+        inputs[
+            "Output - Add as attachment to original images"
+            ] = rbool(False)
+
+    print(f"Running import script {script_ids} with inputs: {inputs}")
     rv = runOMEROScript(client, svc, script_ids, inputs)
     return rv
 

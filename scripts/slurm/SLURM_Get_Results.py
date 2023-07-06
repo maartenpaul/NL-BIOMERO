@@ -22,6 +22,9 @@ import zipfile
 import glob
 from omero_slurm_client import SlurmClient
 import logging
+import ezomero
+from aicsimageio import AICSImage
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +33,10 @@ _COMPLETED_JOB = "Completed Job"
 _OUTPUT_ATTACH_PROJECT = "Output - Attach as zip to project?"
 _OUTPUT_ATTACH_PLATE = "Output - Attach as zip to plate?"
 _OUTPUT_ATTACH_OG_IMAGES = "Output - Add as attachment to original images"
+_OUTPUT_ATTACH_NEW_DATASET = "Output - Add as new images in NEW dataset"
 _LOGFILE_PATH_PATTERN_GROUP = "DATA_PATH"
 _LOGFILE_PATH_PATTERN = "Running [\w-]+? Job w\/ .+? \| .+? \| (?P<DATA_PATH>.+?) \|.*"
+_OUTPUT_RENAME = "Output - Rename imported files"
 
 
 def load_image(conn, image_id):
@@ -63,7 +68,7 @@ def getOriginalFilename(name):
     return name
 
 
-def saveCPImagesToOmero(conn, folder, client):
+def saveImagesToOmeroAsAttachments(conn, folder, client):
     """Save image from a (unzipped) folder to OMERO as attachments
 
     Args:
@@ -95,6 +100,10 @@ def saveCPImagesToOmero(conn, folder, client):
             try:
                 # attach the masked image to the original image
                 ext = os.path.splitext(name)[1][1:]
+                
+                if unwrap(client.getInput(_OUTPUT_RENAME)):                
+                    name = rename_import_file(client, name, og_name)
+                
                 file_ann = conn.createFileAnnfromLocalFile(
                     name, mimetype=f"image/{ext}",
                     ns=namespace, desc=f"Result from analysis {folder}")
@@ -121,6 +130,90 @@ def saveCPImagesToOmero(conn, folder, client):
     message = f"\nTried attaching result images to OMERO original images!\n{msg}"
 
     return message
+
+
+def saveImagesToOmeroAsDataset(conn, folder, client, dataset):
+    """Save image from a (unzipped) folder to OMERO as dataset
+
+    Args:
+        conn (_type_): Connection to OMERO
+        folder (String): Unzipped folder
+        client : OMERO client to attach output
+
+    Returns:
+        String: Message to add to script output
+    """
+    all_files = glob.iglob(folder+'**/**', recursive=True)
+    files = [f for f in all_files if os.path.isfile(f)
+             and (f.endswith('.tiff') or f.endswith('.png'))]
+    # more_files = [f for f in os.listdir(f"{folder}/out") if os.path.isfile(f)
+    #               and f.endswith('.tiff')]  # out folder
+    # files += more_files
+    print(f"Found the following files in {folder}: {all_files} && {files}")
+    # namespace = NSCREATED + "/SLURM/SLURM_GET_RESULTS"
+    msg = ""
+    for name in files:
+        print(name)
+        og_name = getOriginalFilename(name)
+        print(og_name)
+        images = list(conn.getObjects("Image", attributes={
+            "name": f"{og_name}"}))  # Can we get in 1 go?
+        print(images)
+        try:
+            # import the masked image for now
+            
+            img = AICSImage(name)  # .data returns 6D STCZYX  numpy array
+            img_data = img.get_image_data("TCZYX", S=0)  # TCZYX
+            try:
+                source_image_id = images[0].getId()
+            except IndexError:
+                source_image_id = None
+            print(img.data.shape, img_data.shape, dataset.id.val, source_image_id)
+            
+            if unwrap(client.getInput(_OUTPUT_RENAME)):                
+                name = rename_import_file(client, name, og_name)
+                
+            img_id = ezomero.post_image(conn, img_data,
+                                        name, dataset_id=dataset.id.val,
+                                        dim_order="tczyx",
+                                        source_image_id=source_image_id)
+            del img_data
+            print(f"Uploaded {name} (from image {og_name}): {img_id}")
+            os.remove(name)
+        except Exception as e:
+            msg = f"Issue uploading file {name} to OMERO {og_name}: {e}"
+            print(msg)
+
+    if images:  # link dataset to OG project
+        parent_dataset = images[0].getParent()
+        parent_project = None
+        if parent_dataset is not None:
+            parent_project = parent_dataset.getParent()
+        if parent_project and parent_project.canLink():
+            # and put it in the current project
+            print(parent_dataset, parent_project, parent_project.getId(), dataset.id.val)
+            project_link = omero.model.ProjectDatasetLinkI()
+            project_link.parent = omero.model.ProjectI(
+                parent_project.getId(), False)
+            project_link.child = omero.model.DatasetI(
+                dataset.id.val, False)
+            update_service = conn.getUpdateService()
+            update_service.saveAndReturnObject(project_link)
+
+    print(files)
+    message = f"\nTried importing images to {dataset}!\n{msg}"
+
+    return message
+
+
+def rename_import_file(client, name, og_name):
+    pattern = unwrap(client.getInput("Rename"))
+    print(f"Overwriting name {name} with pattern: {pattern}")
+    ext = os.path.splitext(name)[1][1:]  # new extension
+    original_file = os.path.splitext(og_name)[0]  # original base 
+    name = pattern.format(original_file=original_file, ext=ext)
+    print(f"New name: {name} ({original_file}, {ext})")
+    return name
 
 
 def getUserPlates():
@@ -200,8 +293,23 @@ def upload_contents_to_omero(client, conn, message, folder):
     try:
         if unwrap(client.getInput(_OUTPUT_ATTACH_OG_IMAGES)):
             # upload and link individual images
-            msg = saveCPImagesToOmero(conn=conn, folder=folder, client=client)
+            msg = saveImagesToOmeroAsAttachments(conn=conn, folder=folder,
+                                                 client=client)
             message += msg
+        if unwrap(client.getInput(_OUTPUT_ATTACH_NEW_DATASET)):
+            # create a new dataset for new images
+            dataset_name = unwrap(client.getInput("New Dataset"))
+            dataset = omero.model.DatasetI()
+            dataset.name = rstring(dataset_name)
+            desc = "Images in this Dataset are label masks of job:\n"\
+                "  Id: %s" % (unwrap(client.getInput(_SLURM_JOB_ID)))
+            dataset.description = rstring(desc)
+            update_service = conn.getUpdateService()
+            dataset = update_service.saveAndReturnObject(dataset)
+
+            saveImagesToOmeroAsDataset(conn=conn, folder=folder, client=client,
+                                       dataset=dataset)
+
     except Exception as e:
         message += f" Failed to upload images to OMERO: {e}"
 
@@ -335,7 +443,7 @@ def runScript():
         _oldjobs = slurmClient.list_completed_jobs()
         _projects = getUserProjects()
         _plates = getUserPlates()
-
+     
         client = scripts.client(
             'Slurm Get Results',
             '''Retrieve the results from your completed SLURM job.
@@ -346,18 +454,27 @@ def runScript():
                          default=True),
             scripts.String(_SLURM_JOB_ID, optional=False, grouping="01.1",
                            values=_oldjobs),
+            scripts.Bool(_OUTPUT_RENAME,
+                         optional=True,
+                         grouping="02",
+                         description="Rename all imported files as below",
+                         default=False),
+            scripts.String("Rename", optional=True,
+                           grouping="02.1",
+                           description="A new name for the imported images.",
+                           default="{original_file}NucleiLabels.{ext}"),
             scripts.Bool(_OUTPUT_ATTACH_PROJECT,
                          optional=False,
-                         grouping="02",
+                         grouping="03",
                          description="Attach all results in zip to a project",
                          default=True),
-            scripts.List("Project", optional=True, grouping="02.1",
+            scripts.List("Project", optional=True, grouping="03.1",
                          description="Project to attach workflow results to",
                          values=_projects),
             scripts.Bool(_OUTPUT_ATTACH_OG_IMAGES,
                          optional=False,
-                         grouping="03",
-                         description="Attach all results to original images",
+                         grouping="05",
+                         description="Attach all results to original images as attachments",
                          default=True),
             scripts.Bool(_OUTPUT_ATTACH_PLATE,
                          optional=False,
@@ -367,20 +484,20 @@ def runScript():
             scripts.List("Plate", optional=True, grouping="04.1",
                          description="Plate to attach workflow results to",
                          values=_plates),
+            scripts.Bool(_OUTPUT_ATTACH_NEW_DATASET,
+                         optional=False,
+                         grouping="06",
+                         description="Import all result as a new dataset",
+                         default=False),
+            scripts.String("New Dataset", optional=True,
+                           grouping="06.1",
+                           description="Name for the new dataset w/ results",
+                           default="My_Results"),
             # scripts.Bool("Output - Add as new images in same dataset",
-            #              optional=False,
-            #              grouping="04",
-            #              description="Add all images to the original dataset",
-            #              default=False),
-            # scripts.Bool("Output - Add as new images in NEW dataset",
-            #              optional=False,
-            #              grouping="05",
-            #              description="Import all result as a new dataset",
-            #              default=False),
-            # scripts.String("New dataset name", optional=True,
-            #                grouping="05.1",
-            #                description="Name for the new dataset w/ results",
-            #                default="My_Results"),
+            #  optional=False,
+            #  grouping="07",
+            #  description="Add all images to the original dataset",
+            #  default=False),
 
             namespaces=[omero.constants.namespaces.NSDYNAMIC],
         )
@@ -413,7 +530,7 @@ def runScript():
                 print(plate_ids)
                 projects = [conn.getObject("Plate", p.split(":")[0])
                             for p in plate_ids]
-            
+
             # Job log
             if unwrap(client.getInput(_COMPLETED_JOB)):
                 # Copy file to server
