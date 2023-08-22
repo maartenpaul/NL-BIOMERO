@@ -1,4 +1,5 @@
-FROM openmicroscopy/omero-server:5.6.3
+FROM openmicroscopy/omero-server:5.6.8
+
 
 COPY worker-gpu/ice.config worker-gpu/worker.cfg /opt/omero/server/OMERO.server/etc/templates/
 
@@ -7,12 +8,15 @@ USER root
 ## Default Python environment
 ENV VIRTUAL_ENV=/opt/omero/server/venv3
 ENV PATH=/opt/ice-3.6.5-0.3.0/bin:$VIRTUAL_ENV/bin/:$PATH
-RUN yum -y install git
-# RUN git clone https://github.com/NL-BioImaging/omero-slurm-client.git
+RUN yum -y update \
+    && yum -y install git 
+
 RUN python3 -m venv $VIRTUAL_ENV \
-    && python3 -m pip install --upgrade pip \
-    && python3 -m pip install 'git+https://github.com/NL-BioImaging/omero-slurm-client.git' \
-    && python3 -m pip install ezomero==1.1.1 aicsimageio==3.3.1
+    && python3 -m pip install --upgrade pip \ 
+    # TODO: add version to slurm client after release
+    && python3 -m pip install 'git+https://github.com/NL-BioImaging/omero-slurm-client@c74b79a7b6d83faadfa1413bbfc2021c19d96486' \
+    && python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3
+
 # SSH library fabric and omero-slurm-client
 
 ## Create extra Python environments

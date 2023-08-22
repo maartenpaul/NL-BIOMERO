@@ -1,4 +1,4 @@
-FROM openmicroscopy/omero-server:5.6.3
+FROM openmicroscopy/omero-server:5.6.8
 
 COPY worker-no-gpu/ice.config worker-no-gpu/worker.cfg /opt/omero/server/OMERO.server/etc/templates/
 
