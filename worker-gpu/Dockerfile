@@ -49,7 +49,8 @@ COPY worker-gpu/ice.config worker-gpu/worker.cfg /opt/omero/server/OMERO.server/
 RUN yum install -y openssh-clients
 COPY worker-gpu/10-mount-ssh.sh /startup/10-mount-ssh.sh
 RUN chmod +x /startup/10-mount-ssh.sh
-COPY slurm-config.ini /etc/slurm-config.ini
+## Setup slurm-config for omero-slurm-client
+COPY worker-gpu/slurm-config.ini /etc/slurm-config.ini
 
 ## OMERO: Replace the default startup scripts
 RUN rm /startup/60-database.sh
