@@ -27,6 +27,13 @@ logger = logging.getLogger(__name__)
 IMAGE_EXPORT_SCRIPT = "SLURM_Run_Workflow.py"
 PROC_SCRIPTS = [IMAGE_EXPORT_SCRIPT]
 DATATYPES = [rstring('Image')]
+OUTPUT_RENAME = "3b) Rename the imported images"
+OUTPUT_PARENT = "1) Zip attachment to parent"
+OUTPUT_ATTACH = "2) Attach to original images"
+OUTPUT_NEW_DATASET = "3a) Import into NEW Dataset"
+OUTPUT_OPTIONS = [OUTPUT_RENAME, OUTPUT_PARENT, OUTPUT_NEW_DATASET,
+                  OUTPUT_ATTACH]
+NO = "--NO THANK YOU--"
 
 
 def runScript():
@@ -77,7 +84,30 @@ def runScript():
                            default=True),
             omscripts.Int("Batch_Size", optional=False, grouping="01.4",
                           description="Number of images to send to 1 slurm job",
-                          default=32)
+                          default=32),
+            omscripts.Bool("Select how to import your results (one or more)",
+                           optional=False,
+                           grouping="02",
+                           description="Select one or more options below:",
+                           default=True),
+            omscripts.String(OUTPUT_RENAME,
+                             optional=True,
+                             grouping="02.6",
+                             description="A new name for the imported images. You can use variables {original_file} and {ext}. E.g. {original_file}NucleiLabels.{ext}",
+                             default=NO),
+            omscripts.Bool(OUTPUT_PARENT,
+                           optional=True, grouping="02.2",
+                           description="Attach zip to parent project/plate",
+                           default=False),
+            omscripts.Bool(OUTPUT_ATTACH,
+                           optional=True,
+                           grouping="02.4",
+                           description="Attach all resulting images to original images as attachments",
+                           default=False),
+            omscripts.String(OUTPUT_NEW_DATASET, optional=True,
+                             grouping="02.5",
+                             description="Name for the new dataset w/ result images",
+                             default=NO),
         ]
         # Generate script parameters for all our workflows
         (wf_versions, _) = slurmClient.get_all_image_versions_and_data_files()
@@ -88,7 +118,7 @@ def runScript():
         workflows = wf_versions.keys()
         for group_incr, wf in enumerate(workflows):
             # increment per wf, determines UI order
-            parameter_group = f"0{group_incr+2}"
+            parameter_group = f"0{group_incr+3}"
             _workflow_available_versions[wf] = wf_versions.get(
                 wf, na)
             # Get the workflow parameters (dynamically) from their repository

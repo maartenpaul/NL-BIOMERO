@@ -23,7 +23,8 @@ import glob
 from omero_slurm_client import SlurmClient
 import logging
 import ezomero
-from aicsimageio import AICSImage
+# from aicsimageio import AICSImage
+from tifffile import imread
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ _OUTPUT_ATTACH_OG_IMAGES = "Output - Add as attachment to original images"
 _OUTPUT_ATTACH_NEW_DATASET = "Output - Add as new images in NEW dataset"
 _LOGFILE_PATH_PATTERN_GROUP = "DATA_PATH"
 _LOGFILE_PATH_PATTERN = "Running [\w-]+? Job w\/ .+? \| .+? \| (?P<DATA_PATH>.+?) \|.*"
-_OUTPUT_RENAME = "Output - Rename imported files"
+_OUTPUT_RENAME = "Rename imported files?"
 
 
 def load_image(conn, image_id):
@@ -87,6 +88,7 @@ def saveImagesToOmeroAsAttachments(conn, folder, client):
     # files += more_files
     print(f"Found the following files in {folder}: {all_files} && {files}")
     namespace = NSCREATED + "/SLURM/SLURM_GET_RESULTS"
+    job_id = unwrap(client.getInput(_SLURM_JOB_ID)).strip()
     msg = ""
     for name in files:
         print(name)
@@ -101,12 +103,14 @@ def saveImagesToOmeroAsAttachments(conn, folder, client):
                 # attach the masked image to the original image
                 ext = os.path.splitext(name)[1][1:]
                 
-                if unwrap(client.getInput(_OUTPUT_RENAME)):                
-                    name = rename_import_file(client, name, og_name)
+                # if unwrap(client.getInput(_OUTPUT_RENAME)):                
+                #     renamed = rename_import_file(client, name, og_name)
+                # TODO: API doesn't allow changing filename when uploading.
+                # Maybe afterward? Update the originalFile name?
                 
                 file_ann = conn.createFileAnnfromLocalFile(
                     name, mimetype=f"image/{ext}",
-                    ns=namespace, desc=f"Result from analysis {folder}")
+                    ns=namespace, desc=f"Result from job {job_id} | analysis {folder}")
                 print(f"Attaching {name} to image {og_name}")
                 # image = load_image(conn, image_id)
                 for image in images:
@@ -117,7 +121,6 @@ def saveImagesToOmeroAsAttachments(conn, folder, client):
                       file_ann.getFile().getName(), "Size:",
                       file_ann.getFile().getSize())
 
-                os.remove(name)
                 client.setOutput("File_Annotation", robject(file_ann._obj))
             except Exception as e:
                 msg = f"Issue attaching file {name} to OMERO {og_name}: {e}"
@@ -130,6 +133,35 @@ def saveImagesToOmeroAsAttachments(conn, folder, client):
     message = f"\nTried attaching result images to OMERO original images!\n{msg}"
 
     return message
+
+
+def to_5d(*arys):
+    '''
+    Implementation extended from Numpy `atleast_3d`.
+    '''
+    res = []
+    for ary in arys:
+        ary = np.asanyarray(ary)
+        if ary.ndim == 0:
+            result = ary.reshape(1, 1, 1, 1, 1)
+        elif ary.ndim == 1:
+            result = ary[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis]
+        elif ary.ndim == 2:
+            result = ary[:, :, np.newaxis, np.newaxis, np.newaxis]
+        elif ary.ndim == 3:
+            result = ary[:, :, :, np.newaxis, np.newaxis]
+        elif ary.ndim == 4:
+            result = ary[:, :, :, :, np.newaxis]
+        elif ary.ndim == 5:
+            result = ary
+        else:
+            logger.warn("Randomly reducing import down to first 5d")
+            result = np.resize(ary, (ary.shape[0:5]))
+        res.append(result)
+    if len(res) == 1:
+        return res[0]
+    else:
+        return res
 
 
 def saveImagesToOmeroAsDataset(conn, folder, client, dataset):
@@ -152,56 +184,66 @@ def saveImagesToOmeroAsDataset(conn, folder, client, dataset):
     print(f"Found the following files in {folder}: {all_files} && {files}")
     # namespace = NSCREATED + "/SLURM/SLURM_GET_RESULTS"
     msg = ""
-    for name in files:
-        print(name)
-        og_name = getOriginalFilename(name)
-        print(og_name)
-        images = list(conn.getObjects("Image", attributes={
-            "name": f"{og_name}"}))  # Can we get in 1 go?
-        print(images)
-        try:
-            # import the masked image for now
-            
-            img = AICSImage(name)  # .data returns 6D STCZYX  numpy array
-            img_data = img.get_image_data("TCZYX", S=0)  # TCZYX
+    job_id = unwrap(client.getInput(_SLURM_JOB_ID)).strip()
+    images = None
+    if files:
+        for name in files:
+            print(name)
+            og_name = getOriginalFilename(name)
+            print(og_name)
+            images = list(conn.getObjects("Image", attributes={
+                "name": f"{og_name}"}))  # Can we get in 1 go?
+            print(images)
             try:
-                source_image_id = images[0].getId()
-            except IndexError:
-                source_image_id = None
-            print(img.data.shape, img_data.shape, dataset.id.val, source_image_id)
-            
-            if unwrap(client.getInput(_OUTPUT_RENAME)):                
-                name = rename_import_file(client, name, og_name)
+                # import the masked image for now
+                img_data = imread(name)
+                try:
+                    source_image_id = images[0].getId()
+                except IndexError:
+                    source_image_id = None
+                print(img_data.shape, dataset.id.val, source_image_id)
                 
-            img_id = ezomero.post_image(conn, img_data,
-                                        name, dataset_id=dataset.id.val,
-                                        dim_order="tczyx",
-                                        source_image_id=source_image_id)
-            del img_data
-            print(f"Uploaded {name} (from image {og_name}): {img_id}")
-            os.remove(name)
-        except Exception as e:
-            msg = f"Issue uploading file {name} to OMERO {og_name}: {e}"
-            print(msg)
+                img_data = to_5d(img_data)
+                
+                print("Reshaped:", img_data.shape)
+                
+                if unwrap(client.getInput(_OUTPUT_RENAME)):            
+                    renamed = rename_import_file(client, name, og_name)
+                else:
+                    renamed = name
+                img_id = ezomero.post_image(conn, img_data,
+                                            renamed, 
+                                            dataset_id=dataset.id.val,
+                                            dim_order="xyzct",
+                                            source_image_id=source_image_id,
+                                            description=f"Result from job {job_id} | analysis {folder}")
+                del img_data
+                print(f"Uploaded {name} as {renamed} (from image {og_name}): {img_id}")
+                # os.remove(name)
+            except Exception as e:
+                msg = f"Issue uploading file {name} to OMERO {og_name}: {e}"
+                print(msg)
 
-    if images:  # link dataset to OG project
-        parent_dataset = images[0].getParent()
-        parent_project = None
-        if parent_dataset is not None:
-            parent_project = parent_dataset.getParent()
-        if parent_project and parent_project.canLink():
-            # and put it in the current project
-            print(parent_dataset, parent_project, parent_project.getId(), dataset.id.val)
-            project_link = omero.model.ProjectDatasetLinkI()
-            project_link.parent = omero.model.ProjectI(
-                parent_project.getId(), False)
-            project_link.child = omero.model.DatasetI(
-                dataset.id.val, False)
-            update_service = conn.getUpdateService()
-            update_service.saveAndReturnObject(project_link)
+        if images:  # link dataset to OG project
+            parent_dataset = images[0].getParent()
+            parent_project = None
+            if parent_dataset is not None:
+                parent_project = parent_dataset.getParent()
+            if parent_project and parent_project.canLink():
+                # and put it in the current project
+                print(parent_dataset, parent_project, parent_project.getId(), dataset.id.val)
+                project_link = omero.model.ProjectDatasetLinkI()
+                project_link.parent = omero.model.ProjectI(
+                    parent_project.getId(), False)
+                project_link.child = omero.model.DatasetI(
+                    dataset.id.val, False)
+                update_service = conn.getUpdateService()
+                update_service.saveAndReturnObject(project_link)
 
-    print(files)
-    message = f"\nTried importing images to {dataset}!\n{msg}"
+        print(files)
+        message = f"\nTried importing images to {dataset.id.val} {dataset.name.val}!\n{msg}"
+    else:
+        message = f"\nNo files found to upload in {folder}"
 
     return message
 
@@ -307,8 +349,11 @@ def upload_contents_to_omero(client, conn, message, folder):
             update_service = conn.getUpdateService()
             dataset = update_service.saveAndReturnObject(dataset)
 
-            saveImagesToOmeroAsDataset(conn=conn, folder=folder, client=client,
-                                       dataset=dataset)
+            msg = saveImagesToOmeroAsDataset(conn=conn, 
+                                             folder=folder, 
+                                             client=client,
+                                             dataset=dataset)
+            message += msg
 
     except Exception as e:
         message += f" Failed to upload images to OMERO: {e}"
@@ -454,15 +499,6 @@ def runScript():
                          default=True),
             scripts.String(_SLURM_JOB_ID, optional=False, grouping="01.1",
                            values=_oldjobs),
-            scripts.Bool(_OUTPUT_RENAME,
-                         optional=True,
-                         grouping="02",
-                         description="Rename all imported files as below",
-                         default=False),
-            scripts.String("Rename", optional=True,
-                           grouping="02.1",
-                           description="A new name for the imported images.",
-                           default="{original_file}NucleiLabels.{ext}"),
             scripts.Bool(_OUTPUT_ATTACH_PROJECT,
                          optional=False,
                          grouping="03",
@@ -493,6 +529,15 @@ def runScript():
                            grouping="06.1",
                            description="Name for the new dataset w/ results",
                            default="My_Results"),
+            scripts.Bool(_OUTPUT_RENAME,
+                         optional=True,
+                         grouping="06.2",
+                         description="Rename all imported files as below. You can use variables {original_file} and {ext}. E.g. {original_file}NucleiLabels.{ext}",
+                         default=False),
+            scripts.String("Rename", optional=True,
+                           grouping="06.3",
+                           description="A new name for the imported images.",
+                           default="{original_file}NucleiLabels.{ext}"),
             # scripts.Bool("Output - Add as new images in same dataset",
             #  optional=False,
             #  grouping="07",
@@ -533,68 +578,71 @@ def runScript():
 
             # Job log
             if unwrap(client.getInput(_COMPLETED_JOB)):
-                # Copy file to server
-                tup = slurmClient.get_logfile_from_slurm(
-                    slurm_job_id)
-                (local_tmp_storage, log_file, get_result) = tup
-                message += "\nSuccesfully copied logfile."
-                print(message)
-                print(get_result.__dict__)
+                
+                try:
+                    # Copy file to server
+                    tup = slurmClient.get_logfile_from_slurm(
+                        slurm_job_id)
+                    (local_tmp_storage, log_file, get_result) = tup
+                    message += "\nSuccesfully copied logfile."
+                    print(message)
+                    print(get_result.__dict__)
 
-                # Upload logfile to Omero as Original File
-                message = upload_log_to_omero(
-                    client, conn, message,
-                    slurm_job_id, projects, log_file)
+                    # Upload logfile to Omero as Original File
+                    message = upload_log_to_omero(
+                        client, conn, message,
+                        slurm_job_id, projects, log_file)
 
-                # Read file for data location
-                data_location = slurmClient.extract_data_location_from_log(
-                    slurm_job_id)
-                print(f"Extracted {data_location}")
+                    # Read file for data location
+                    data_location = slurmClient.extract_data_location_from_log(
+                        slurm_job_id)
+                    print(f"Extracted {data_location}")
 
-                # zip and scp data location
-                if data_location:
-                    filename = f"{slurm_job_id}_out"
+                    # zip and scp data location
+                    if data_location:
+                        filename = f"{slurm_job_id}_out"
 
-                    zip_result = slurmClient.zip_data_on_slurm_server(
-                        data_location, filename)
-                    if not zip_result.ok:
-                        message += "\nFailed to zip data on Slurm."
-                        print(message, zip_result.stderr)
-                    else:
-                        message += "\nSuccesfully zipped data on Slurm."
-                        print(message, zip_result.stdout)
+                        zip_result = slurmClient.zip_data_on_slurm_server(
+                            data_location, filename)
+                        if not zip_result.ok:
+                            message += "\nFailed to zip data on Slurm."
+                            print(message, zip_result.stderr)
+                        else:
+                            message += "\nSuccesfully zipped data on Slurm."
+                            print(message, zip_result.stdout)
 
-                        copy_result = slurmClient.copy_zip_locally(
-                            local_tmp_storage, filename)
+                            copy_result = slurmClient.copy_zip_locally(
+                                local_tmp_storage, filename)
 
-                        message += "\nSuccesfully copied zip."
-                        print(message, copy_result)
+                            message += "\nSuccesfully copied zip."
+                            print(message, copy_result)
 
-                        folder = f"{local_tmp_storage}/{filename}"
+                            folder = f"{local_tmp_storage}/{filename}"
 
-                        if (unwrap(client.getInput(_OUTPUT_ATTACH_PROJECT)) or
-                                unwrap(client.getInput(_OUTPUT_ATTACH_PLATE))):
-                            message = upload_zip_to_omero(
-                                client, conn, message,
-                                slurm_job_id, projects, folder)
+                            if (unwrap(client.getInput(_OUTPUT_ATTACH_PROJECT)) or
+                                    unwrap(client.getInput(_OUTPUT_ATTACH_PLATE))):
+                                message = upload_zip_to_omero(
+                                    client, conn, message,
+                                    slurm_job_id, projects, folder)
 
-                        message = unzip_zip_locally(message, folder)
+                            message = unzip_zip_locally(message, folder)
 
-                        message = upload_contents_to_omero(
-                            client, conn, message, folder)
+                            message = upload_contents_to_omero(
+                                client, conn, message, folder)
 
-                        message = cleanup_tmp_files_locally(
-                            message, folder, log_file)
+                            message = cleanup_tmp_files_locally(
+                                message, folder, log_file)
 
-                        clean_result = slurmClient.cleanup_tmp_files(
-                            slurm_job_id,
-                            filename,
-                            data_location)
-                        message += "\nSuccesfully cleaned up tmp files"
-                        print(message, clean_result)
+                            clean_result = slurmClient.cleanup_tmp_files(
+                                slurm_job_id,
+                                filename,
+                                data_location)
+                            message += "\nSuccesfully cleaned up tmp files"
+                            print(message, clean_result)
+                except Exception as e:
+                    message += f"\nEncountered error: {e}"
 
             client.setOutput("Message", rstring(str(message)))
-
         finally:
             client.closeSession()
 

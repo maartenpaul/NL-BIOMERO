@@ -29,10 +29,10 @@ EXPORT_SCRIPTS = [IMAGE_EXPORT_SCRIPT]
 IMPORT_SCRIPTS = [IMAGE_IMPORT_SCRIPT]
 DATATYPES = [rstring('Dataset'), rstring('Image'), rstring('Plate')]
 NO = "--NO THANK YOU--"
-OUTPUT_RENAME = "Rename imported images"
-OUTPUT_PARENT = "Zip attachment to parent"
-OUTPUT_ATTACH = "Attach to original images"
-OUTPUT_NEW_DATASET = "Import into NEW Dataset"
+OUTPUT_RENAME = "3b) Rename the imported images"
+OUTPUT_PARENT = "1) Zip attachment to parent"
+OUTPUT_ATTACH = "2) Attach to original images"
+OUTPUT_NEW_DATASET = "3a) Import into NEW Dataset"
 OUTPUT_OPTIONS = [OUTPUT_RENAME, OUTPUT_PARENT, OUTPUT_NEW_DATASET,
                   OUTPUT_ATTACH]
 
@@ -144,8 +144,8 @@ def runScript():
                            default=True),
             omscripts.String(OUTPUT_RENAME,
                              optional=True,
-                             grouping="02.1",
-                             description="A new name for the imported images. E.g. {original_file}NucleiLabels.{ext}",
+                             grouping="02.6",
+                             description="A new name for the imported images. You can use variables {original_file} and {ext}. E.g. {original_file}NucleiLabels.{ext}",
                              default=NO),
             omscripts.Bool(OUTPUT_PARENT,
                            optional=True, grouping="02.2",
@@ -342,11 +342,16 @@ def runScript():
                         elif job_state == "COMPLETED":
                             # 5. Retrieve SLURM images
                             # 6. Store results in OMERO
+                            log_msg = f"Job {slurm_job_id} is COMPLETED."
                             rv_imp = importImagesToOmero(
                                 client, conn, slurm_job_id, selected_output)
                             
                             if rv_imp:
-                                log_msg = f"{rv_imp['Message'].getValue()}"
+                                try:
+                                    if rv_imp['Message']:
+                                        log_msg = f"{rv_imp['Message'].getValue()}"
+                                except KeyError:
+                                    log_msg += "Data import status unknown."
                                 try:
                                     if rv_imp['URL']:
                                         client.setOutput("URL", rv_imp['URL'])
@@ -364,7 +369,7 @@ def runScript():
                                     Omero."
                             print(log_msg)
                             logger.info(log_msg)
-                            UI_messages += " Imported images to Omero. "
+                            UI_messages += log_msg
                             slurm_job_id_list.remove(slurm_job_id)
                         elif (job_state.startswith("CANCELLED")
                                 or job_state == "FAILED"):
@@ -576,10 +581,10 @@ def importImagesToOmero(client: omscripts.client,
         inputs["Output - Attach as zip to plate?"] = rbool(False)
 
     if selected_output[OUTPUT_RENAME]:
-        inputs["Output - Rename imported files"] = rbool(True)
+        inputs["Rename imported files?"] = rbool(True)
         inputs["Rename"] = client.getInput(OUTPUT_RENAME)
     else:
-        inputs["Output - Rename imported files"] = rbool(False)
+        inputs["Rename imported files?"] = rbool(False)
 
     if selected_output[OUTPUT_NEW_DATASET]:
         inputs["Output - Add as new images in NEW dataset"] = rbool(True)
