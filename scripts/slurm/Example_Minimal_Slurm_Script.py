@@ -35,7 +35,7 @@ def runScript():
     The main entry point of the script
     """
 
-    with SlurmClient() as slurmClient:
+    with SlurmClient.from_config() as slurmClient:
 
         params = JobParams()
         params.authors = ["Torec Luik"]
