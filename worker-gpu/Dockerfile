@@ -52,6 +52,25 @@ RUN chmod +x /startup/10-mount-ssh.sh
 ## Setup slurm-config for omero-slurm-client
 COPY worker-gpu/slurm-config.ini /etc/slurm-config.ini
 
+## Setup OME ZARR & TIFF modules for data export
+RUN python3 -m pip install omero-cli-zarr==0.5.3
+RUN yum install -y blosc-devel
+
+# Sadly can't do this in Dockerfile:
+# ENV JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:/bin/java::")
+ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-11.0.20.0.8-1.el7_9.x86_64
+
+RUN wget https://github.com/glencoesoftware/raw2ometiff/releases/download/v0.5.0/raw2ometiff-0.5.0.zip \
+    ; unzip -d /opt raw2ometiff-0.5.0.zip \
+    && rm raw2ometiff-0.5.0.zip
+ENV PATH="$PATH:/opt/raw2ometiff-0.5.0/bin"
+# ENV PATH=/opt/ice-3.6.5-0.3.0/bin:$VIRTUAL_ENV/bin/:$PATH
+
+RUN wget https://github.com/glencoesoftware/bioformats2raw/releases/download/v0.7.0/bioformats2raw-0.7.0.zip \
+    ; unzip -d /opt bioformats2raw-0.7.0.zip \
+    && rm bioformats2raw-0.7.0.zip
+ENV PATH="$PATH:/opt/bioformats2raw-0.7.0/bin"
+
 ## OMERO: Replace the default startup scripts
 RUN rm /startup/60-database.sh
 COPY worker-gpu/99-run.sh /startup/99-run.sh
