@@ -14,7 +14,7 @@ RUN yum -y update \
 RUN python3 -m venv $VIRTUAL_ENV \
     && python3 -m pip install --upgrade pip \ 
     # TODO: add version to slurm client after release
-    && python3 -m pip install 'git+https://github.com/NL-BioImaging/omero-slurm-client@c06a59696b2d027f4bf50a2f0541bc57f1bcdf36' \
+    && python3 -m pip install 'git+https://github.com/NL-BioImaging/omero-slurm-client@v0.1.2-alpha' \
     && python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3
 
 # SSH library fabric and omero-slurm-client
