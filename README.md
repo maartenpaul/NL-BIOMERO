@@ -33,6 +33,7 @@ Or in short:
     cd ..
     git clone https://github.com/TorecLuik/slurm-docker-cluster
     cd slurm-docker-cluster
+    cp ~/.ssh/id_rsa.pub .
     docker-compose up -d --build
 
 Then let's go back to our omero setup:
