@@ -11,10 +11,12 @@ ENV PATH=/opt/ice-3.6.5-0.3.0/bin:$VIRTUAL_ENV/bin/:$PATH
 RUN yum -y update \
     && yum -y install git 
 
+# Invalidate cache for development builds
+ADD "https://api.github.com/repos/NL-BioImaging/omero-slurm-client/commits?per_page=1" latest_commit
 RUN python3 -m venv $VIRTUAL_ENV \
     && python3 -m pip install --upgrade pip \ 
-    # TODO: add version to slurm client after release
-    && python3 -m pip install 'git+https://github.com/NL-BioImaging/omero-slurm-client@v0.1.2-alpha' \
+    # TODO: add version to slurm client after release, for development: run latest
+    && python3 -m pip install 'git+https://github.com/NL-BioImaging/omero-slurm-client' \
     && python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3
 
 # SSH library fabric and omero-slurm-client
