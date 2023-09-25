@@ -55,6 +55,31 @@ Log in on web (`localhost:4080`) as user `root` password `omero`. This might tak
 
 Enjoy!
 
+## Data
+
+To actually enjoy, you'll need some data. 
+
+For now you need [OMERO.insight app](https://downloads.openmicroscopy.org/help/pdfs/getting-started-5.pdf).
+
+Connect to `localhost`, login as `root`/`omero` again and upload some nice images.
+
+## Omero Slurm Client
+
+Checkout the [Omero Slurm Client documentation](https://nl-bioimaging.github.io/omero-slurm-client/) for details on how to use the library and example scripts.
+
+In short:
+1. Run script `slurm/init/SLURM Init environment...`
+2. Get a coffee or something. This will take at least 10 min to download all the workflow images. Maybe write a nice review on `image.sc` of this software.
+3. Select your image / dataset and run script `slurm/workflows/SLURM Run Workflow...`
+    - Select at least one of the `Select how to import your results`, e.g. change `Import into NEW Dataset` text to `hello world`
+    - Select a fun workflow, e.g. `cellpose`.
+        - Change the `nuc channel` to the channel to segment
+        - Uncheck the `use gpu` unless you setup a nice Slurm w/ GPU
+    - Refresh your Omero `Explore` tab to see your `hello world` dataset with a mask image when the workflow is done.
+
+
+
+
 
 ## Docker specifics 
 
