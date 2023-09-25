@@ -1,0 +1,5 @@
+Host slurm
+    HostName my.slurm.server
+    User my-user
+    Port 22
+    IdentityFile /location/of/id_rsa
