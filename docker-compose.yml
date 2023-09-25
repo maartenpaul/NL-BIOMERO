@@ -41,8 +41,8 @@ services:
       CONFIG_omero_db_name: omero
       CONFIG_omero_server_nodedescriptors: >-
         master:Blitz-0
-        omeroworker-1:Tables-0,Indexer-0,PixelData-0
-        omeroworker-5:DropBox,MonitorServer,FileServer,Storm,Processor-2
+        omeroworker-1:Tables-0,Indexer-0,PixelData-0,DropBox,MonitorServer,FileServer,Storm
+        omeroworker-processor:Processor-0
       CONFIG_omero_master_host: omeroserver
       ROOTPASS: omero
     # Define named network to communicate with other containers
@@ -55,7 +55,6 @@ services:
     # Define named volume and map a folder from the host machine
     volumes:
       - "omero:/OMERO"
-      - ./scripts:/scripts:ro
 
   # Name of our worker node, can be anything 
   omeroworker-1:
@@ -73,63 +72,20 @@ services:
     volumes:
       - "omero:/OMERO"
 
-  # omeroworker-2:
-  #   build: ./worker
-  #   environment:
-  #     CONFIG_omero_master_host: omeroserver
-  #     OMERO_WORKER_NAME: omeroworker-2
-  #   networks:
-  #     - omero
-  #   volumes:
-  #     - "omero:/OMERO"
-
-  # omeroworker-3:
-  #   build: ./worker
-  #   environment:
-  #     CONFIG_omero_master_host: omeroserver
-  #     OMERO_WORKER_NAME: omeroworker-3
-  #   networks:
-  #     - omero
-  #   volumes:
-  #     - "omero:/OMERO"
-
-  # omeroworker-4:
-  #   build: 
-  #     context: ./
-  #     dockerfile: ./worker-no-gpu/Dockerfile
-  #   environment:
-  #     CONFIG_omero_master_host: omeroserver
-  #     OMERO_WORKER_NAME: omeroworker-4
-  #     OMERO_SERVER_GPU: False
-  #     CONFIG_omero_server_gpu: False
-  #     CONFIG_omero_logging_level: 10
-  #   networks:
-  #     - omero
-  #   volumes:
-  #     - "omero:/OMERO"
-
   # Define our processor worker
-  omeroworker-5:
+  omeroworker-processor:
     # Build this image locally from current map './'
     # This way we can share file access from Dockerfile in './worker-gpu'
-    # so that only one 'processor.py' is needed
     # Uses args to provide variables from '.env' file to the Dockerfile
     build: 
       context: ./
-      dockerfile: ./worker-gpu/Dockerfile
-      args:
-        VIRTUAL_ENV_CP: ${VIRTUAL_ENV_CP}
-        VIRTUAL_ENV_SD: ${VIRTUAL_ENV_SD}
+      dockerfile: ./worker-processor/Dockerfile
     # Define variables for use in the container.
     # WORKER_NAME is used in the omero/ice node description
     # logging_level doesn't work, but should increase logging
-    # GPU variables inform 'processor.py' of hardware settings.
-    # TODO: revisit the use of these variables. Probably remove them.
     environment:
       CONFIG_omero_master_host: omeroserver
-      OMERO_WORKER_NAME: omeroworker-5
-      OMERO_SERVER_GPU: True
-      CONFIG_omero_server_gpu: True
+      OMERO_WORKER_NAME: omeroworker-processor
       CONFIG_omero_logging_level: 10
     # Named network to communicate with other containers
     networks:

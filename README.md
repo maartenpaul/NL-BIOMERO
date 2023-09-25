@@ -1,61 +1,98 @@
-# Specialized Processors - OMERO.server grid and OMERO.web (docker-compose)
+# OMERO server with Omero-Slurm-Client
 
 
 This is an adaptation of [OMERO.server grid and OMERO.web (docker-compose)](https://github.com/ome/docker-example-omero-grid)
 
-This is an example of running [OMERO.server components on multiple nodes using OMERO.grid](http://www.openmicroscopy.org/site/support/omero5/sysadmins/grid.html#nodes-on-multiple-hosts) in Docker, but with multiple and/or specialized processor nodes.
+This is an example of running [OMERO.server components on multiple nodes using OMERO.grid](http://www.openmicroscopy.org/site/support/omero5/sysadmins/grid.html#nodes-on-multiple-hosts) in Docker, but with a connection to Omero Slurm Client.
 
 OMERO.server is listening on the standard OMERO ports `4063` and `4064`.
 OMERO.web is listening on port `4080` (http://localhost:4080/).
 
-Log in as user `root` password `omero`.
-The initial password can be changed in [`docker-compose.yml`](docker-compose.yml).
+
+## Quickstart
+Clone this repository locally (from the commandline)
+
+    git clone https://github.com/TorecLuik/docker-example-omero-grid-amc.git
+
+Change into the new directory
+
+    cd docker-example-omero-grid-amc
+
+Setup the connection with Slurm:
+
+First, setup a configuration file, e.g. take the local slurm:
+
+    cp worker-processor/slurm-config.localslurm.ini worker-processor/slurm-config.ini
+
+Next, actually setup a local Slurm that matches this config.
+
+Follow the README on https://github.com/TorecLuik/slurm-docker-cluster
+
+Or in short: 
+
+    cd ..
+    git clone https://github.com/TorecLuik/slurm-docker-cluster
+    cd slurm-docker-cluster
+    docker-compose up -d --build
+
+Then let's go back to our omero setup:
+
+    cd docker-example-omero-grid-amc
 
 
-## Run
 
-First pull the latest major versions of the containers:
+Build and start the containers:
 
-    docker-compose pull
+    docker-compose up -d --build
 
-Then start the containers:
+If you want, follow along with the logs on your commandline:
 
-    docker-compose up -d
     docker-compose logs -f
+    
+You can exit the logs with CTRL+C (your Omero will keep running, because we ran them with `-d` = `detached`)
 
-To rebuild a container:
+Log in on web (`localhost:4080`) as user `root` password `omero`. This might take a bit to get ready as the servers start up.
+
+Enjoy!
+
+
+## Docker specifics 
+
+To stop the cluster:
+
+    docker-compose down
+
+N.B. Data is stored on Docker volumes, which are not automatically deleted when you down the setup. Convenient.
+
+To remove volumes as well:
+
+    docker-compose down --volumes
+
+To rebuild a single container (while running your cluster):
 
     docker-compose up -d --build <name>
 
-To attach to a container:
+To attach to a running container:
 
     docker-compose exec <name> /bin/bash
 
-For more configuration options see:
-- https://github.com/ome/omero-server-docker/blob/master/README.md
-- https://github.com/ome/omero-web-docker/blob/master/README.md
+Where `<name>` is e.g. `omeroworker-processor`
 
-## Processors
+Exit back to your commandline by typing `exit`.
 
-We have adjusted the [dockerfiles](./worker-gpu/Dockerfile) of workers/processors to work with multiple Python environments, possibly unique to that processor. 
 
-The modified [processor-py](./processor.py) will check if a script job it receives matches any python environments it has and accept or reject the job based on that.
 
-Specifically:
-- The `worker-gpu` [image](./worker-gpu/Dockerfile) currently creates the 2 environments from the [.env](.env) file. This works with the example [cellpose](./scripts/Example_EnvCellpose_Segmentation.py) and [stardist](./scripts/Example_EnvStardist_Segmentation.py) scripts.
-- The `worker-no-gpu` [image](./worker-no-gpu/Dockerfile) currently has no special environment, but does use the modified [processor](./processor.py). This only works with the [basic](./scripts/Example_Dynamic_Script.py) scripts. 
-- The `worker` [image](./worker/Dockerfile) is still the default from [OME](https://github.com/ome/docker-example-omero-grid), not using the modified [processor](./processor.py). This only works with the [basic](./scripts/Example_Dynamic_Script.py) scripts.
-- The [unknown environment](./scripts/Example_EnvUnknown_Dynamic_Script.py) script works with none of the processors.
+## Slurm specifics
 
-### Configuration for GPU
-You can also set the `CONFIG_omero_server_gpu: False` or `True` for the workers in the [compose](docker-compose.yml) file. There is a second check in the modified [processor-py](./processor.py) to see if this setting matches the script. 
+Checkout the [Omero Slurm Client documentation](https://nl-bioimaging.github.io/omero-slurm-client/) for more details on how to setup your Slurm connection with Omero. 
 
-Currently there is a non-strict implementation where a 'GPU server' is allowed to handle _both_ normal and GPU scripts, but a normal server is not allowed to handle GPU scripts. 
-
-However, this is likely to be implemented differently or removed, as specifying python environments seems to handle most of this use-case already.
-
-## Multiple processors
-
-You can adjust the [compose](./docker-compose.yml) file to add a second worker with a different environment, or to reduce it to 1 processor.
-
-Currently the behaviour of multiple processors is not working as intended.
+In short, you always need:
+- (headless) SSH setup to Slurm server from your host computer. See for example `ssh.config.example`.
+    - Slurm IP
+    - Slurm SSH port (probably `22`)
+    - Slurm username
+    - SSH keys (public key exchanged with Slurm server)
+    - SSH alias config file stored as `~/.ssh/config`
+- Configuration of `slurm-config.ini`. 
+    - Alias used in your config, e.g. `localslurm` 
+    - Setup storage paths on Slurm server, e.g. `slurm_data_path`, `slurm_images_path` and `slurm_script_path`.

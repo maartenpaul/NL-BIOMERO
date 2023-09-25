@@ -1,2 +1,2 @@
-worker-gpu/slurm-config.ini_*
-worker-gpu/slurm-config.ini
+worker-processor/slurm-config.ini_*
+worker-processor/slurm-config.ini
