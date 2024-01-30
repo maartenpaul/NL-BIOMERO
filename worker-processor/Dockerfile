@@ -42,15 +42,15 @@ ENV PATH="$PATH:/opt/bioformats2raw-0.7.0/bin"
 ## Add BIOMERO Omero Slurm Client
 # For development: 
 # Invalidate cache for development builds
-# ADD "https://api.github.com/repos/NL-BioImaging/omero-slurm-client/commits?per_page=1" latest_commit
+# ADD "https://api.github.com/repos/NL-BioImaging/biomero/commits?per_page=1" latest_commit
 # and install from git intead of pypi 
-# && python3 -m pip install 'git+https://github.com/NL-BioImaging/omero-slurm-client' \
+# && python3 -m pip install 'git+https://github.com/NL-BioImaging/biomero' \
 RUN python3 -m venv $VIRTUAL_ENV \
     && python3 -m pip install --upgrade pip \ 
-    && python3 -m pip install omero-slurm-client==1.1.1 \
+    && python3 -m pip install biomero==1.2.0 \
     && python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3
 
-## Setup slurm-config for omero-slurm-client
+## Setup slurm-config for biomero
 COPY worker-processor/slurm-config.ini /etc/slurm-config.ini
 
 ## OMERO: Replace the default startup scripts
