@@ -47,7 +47,7 @@ ENV PATH="$PATH:/opt/bioformats2raw-0.7.0/bin"
 RUN python3 -m venv $VIRTUAL_ENV \
     && python3 -m pip install --upgrade pip \ 
     && python3 -m pip install biomero==1.2.0 \
-    && python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3
+    && python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3 omero-metadata==0.12.0
 
 ## Setup slurm-config for biomero
 COPY worker-processor/slurm-config.ini /etc/slurm-config.ini
