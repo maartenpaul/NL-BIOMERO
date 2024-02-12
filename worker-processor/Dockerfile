@@ -1,8 +1,5 @@
 FROM openmicroscopy/omero-server:5.6.10
 
-
-COPY worker-processor/ice.config worker-processor/worker.cfg /opt/omero/server/OMERO.server/etc/templates/
-
 USER root
 
 ## Default Python environment
@@ -48,6 +45,9 @@ RUN python3 -m venv $VIRTUAL_ENV \
     && python3 -m pip install --upgrade pip \ 
     && python3 -m pip install biomero==1.3.0 \
     && python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3 omero-metadata==0.12.0
+
+## Adjust processor code with AMC Processor
+COPY worker-processor/processor.py /opt/omero/server/venv3/lib/python3.9/site-packages/omero/
 
 ## Setup slurm-config for biomero
 COPY worker-processor/slurm-config.ini /etc/slurm-config.ini
