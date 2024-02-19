@@ -1,5 +1,7 @@
 FROM openmicroscopy/omero-server:5.6.10
 
+ARG BIOMERO_VERSION=v1.4.0
+
 USER root
 
 ## Default Python environment
@@ -43,7 +45,7 @@ ENV PATH="$PATH:/opt/bioformats2raw-0.7.0/bin"
 # && python3 -m pip install 'git+https://github.com/NL-BioImaging/biomero' \
 RUN python3 -m venv $VIRTUAL_ENV \
     && python3 -m pip install --upgrade pip \ 
-    && python3 -m pip install biomero==1.3.0 \
+    && python3 -m pip install biomero==${BIOMERO_VERSION} \
     && python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3 omero-metadata==0.12.0
 
 ## Adjust processor code with AMC Processor
