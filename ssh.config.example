@@ -1,5 +1,6 @@
-Host slurm
-    HostName my.slurm.server
-    User my-user
-    Port 22
-    IdentityFile /location/of/id_rsa
+Host localslurm
+        HostName host.docker.internal
+        User slurm
+        Port 2222
+        IdentityFile ~/.ssh/id_rsa
+        StrictHostKeyChecking no
