@@ -52,6 +52,17 @@ If that works, (exit and) create a nice alias 'localslurm' for this setup instea
 
     cp ssh.config.example ~/.ssh/config
 
+The contents should be like this (to match the SSH command you performed above):
+
+```
+Host localslurm
+        HostName host.docker.internal
+        User slurm
+        Port 2222
+        IdentityFile ~/.ssh/id_rsa
+        StrictHostKeyChecking no
+```
+
 Now test the new config:
 
     ssh localslurm
