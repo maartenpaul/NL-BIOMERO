@@ -12,6 +12,8 @@ OMERO.web is listening on port `4080` (http://localhost:4080/).
 
 
 ## Quickstart
+!Note: this quickstart is based on Windows docker desktop and uses `host.docker.internal` to communicate between local clusters. This might require different settings on Linux (commandline)
+
 Clone this repository locally (from the commandline)
 
     git clone https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO.git
@@ -42,9 +44,21 @@ Then let's go back to our omero setup:
 
     cd NL-BIOMERO
 
+First, ensure that you can reach the slurm cluster from your host machine:
 
+    ssh -i ~/.ssh/id_rsa -p 2222 -o StrictHostKeyChecking=no slurm@host.docker.internal
 
-Build and start the containers:
+If that works, (exit and) create a nice alias 'localslurm' for this setup instead by creating `~/.ssh/config` 
+
+    cp ssh.config.example ~/.ssh/config
+
+Now test the new config:
+
+    ssh localslurm
+
+Note that this configured alias has to be the same as the one configured in your slurm-config.ini
+
+Finally, when that works, build and start the biomero containers:
 
     docker-compose up -d --build
 
