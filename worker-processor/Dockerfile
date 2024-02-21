@@ -1,6 +1,6 @@
 FROM openmicroscopy/omero-server:5.6.10
 
-ARG BIOMERO_VERSION=v1.4.0
+ARG BIOMERO_VERSION=v1.5.0
 
 USER root
 
