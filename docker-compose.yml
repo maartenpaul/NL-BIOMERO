@@ -39,6 +39,8 @@ services:
       CONFIG_omero_db_user: omero
       CONFIG_omero_db_pass: omero
       CONFIG_omero_db_name: omero
+      CONFIG_omero_scripts_timeout: 604800000
+      CONFIG_omero_logging_level: 10
       CONFIG_omero_server_nodedescriptors: >-
         master:Blitz-0
         omeroworker-1:Tables-0,Indexer-0,PixelData-0,DropBox,MonitorServer,FileServer,Storm
@@ -65,6 +67,7 @@ services:
     environment:
       CONFIG_omero_master_host: omeroserver
       OMERO_WORKER_NAME: omeroworker-1
+      CONFIG_omero_scripts_timeout: 604800000
     # Named network to communicate with other containers
     networks:
       - omero
@@ -87,6 +90,7 @@ services:
       CONFIG_omero_master_host: omeroserver
       OMERO_WORKER_NAME: omeroworker-processor
       CONFIG_omero_logging_level: 10
+      CONFIG_omero_scripts_timeout: 604800000
     # Named network to communicate with other containers
     networks:
       - omero
@@ -105,6 +109,7 @@ services:
       context: ./web
     environment:
       OMEROHOST: omeroserver
+      CONFIG_omero_scripts_timeout: 604800000
       ENV: TEST
     # Named network to communicate with other containers
     networks:
