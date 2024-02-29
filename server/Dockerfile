@@ -1,6 +1,6 @@
 FROM openmicroscopy/omero-server:5.6.10
 
-ARG BIOMERO_VERSION=v1.5.1
+ARG BIOMERO_VERSION=v1.6.0
 
 # Upload scripts for omero-server user
 # COPY --chown=omero-server:omero-server scripts/slurm/* /opt/omero/server/OMERO.server/lib/scripts/slurm/
@@ -12,6 +12,7 @@ USER omero-server
 # Now just pulling released / tagged versions
 RUN  cd /opt/omero/server/OMERO.server/lib/scripts/ && \
     git clone --depth 1 --branch ${BIOMERO_VERSION} https://github.com/NL-BioImaging/biomero-scripts.git biomero
+    # git clone --depth 1 https://github.com/NL-BioImaging/biomero-scripts.git biomero
 
 # Overwrite ICE configuration
 # COPY ice.config /opt/omero/server/OMERO.server/etc/templates/
