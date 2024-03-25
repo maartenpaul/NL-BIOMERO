@@ -83,6 +83,12 @@ Log in on web (`localhost:4080`) as user `root` password `omero`. This might tak
 
 Enjoy!
 
+### Note on Linux commandline Docker issues with .ssh
+
+I have noticed on Linux, the container will not have access to your .ssh folder with default permissions. So just change the .ssh folder to something open like 777 `chmod -R 777 ~/.ssh` when you are building the container / mounting your SSH into BIOMERO. 
+
+Afterward, you can just change it back again, with `chmod -R 700 ~/.ssh`, so you can use it locally to SSH again.
+
 ## Data
 
 To actually enjoy, you'll need some data. 
