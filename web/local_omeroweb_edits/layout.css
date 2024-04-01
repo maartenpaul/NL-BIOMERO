@@ -225,67 +225,58 @@
 				}
 		
 /* NEW css for groupsUsersButton */
-        #groupsUsersButton {
-            display: inline-flex;
-            flex-direction: row; 
-            align-items: center;
-            overflow:hidden;
-            padding:.3em 1.8em .3em .7em;
-            -webkit-border-radius:5px; /* Saf3+, Chrome */
-            -moz-border-radius:5px; /* FF1+ */
-            border-radius:5px; /* Opera 10.5, IE 9 */ 
-            font-family:"Helvetica Neue", Helvetica, Arial, sans-serif;
-            font-weight:500;
-            color:white;
-            background: url(../image/group_dropdown_arrow.png) 97% center no-repeat;
-            cursor:pointer;
-            position:relative;
-            text-shadow: 0 1px 0 rgba(0,0,0,.4);
-            margin-top:4px;
-            }
-        
-            #groupsUsersButton img {
-                margin-right:6px;
-            }
-        
-            #groupsUsersButton span {
-                font-size:1.15em;
-                line-height:1.6em;
-                padding-right:8px;
-                color:white;
-                font-weight:900;
-            }
+    #groupsUsersButton {
+        overflow: hidden;
+        padding: .3em 1.8em .3em .7em;
+        -webkit-border-radius: 5px; /* Saf3+, Chrome */
+        -moz-border-radius: 5px; /* FF1+ */
+        border-radius: 5px; /* Opera 10.5, IE 9 */
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-weight: 500;
+        color: white;
+        background: url(../image/group_dropdown_arrow.png) 97% center no-repeat;
+        cursor: pointer;
+        position: relative;
+        text-shadow: 0 1px 0 rgba(0,0,0,.4);
+        margin-top: 4px;
+        vertical-align: middle; /* Ensure it aligns well with other inline or inline-block elements */
 
-            #groupsUsersButton span:last-child {
-                color:rgba(255,255,255,.7);
-                font-weight:700;
-                font-family: 'HelveticaNeue', Helvetica, Arial, sans-serif;
-            }
+        display: inline-flex; /* Use flexbox to layout child elements */
+        align-items: center; /* Center-align the child elements vertically */
+        justify-content: start; /* Align children to the start of the container */
+    }
 
-    /* New styles */
-    .group-select-text {
+    #groupsUsersButton .group-select-label, 
+    #groupsUsersButton .group-image, 
+    #groupsUsersButton .group-name, 
+    #groupsUsersButton .user-name {
+        margin-right: 8px; /* Add some spacing between the elements */
+    }
+    #groupsUsersButton .group-select-label {
         font-size: 1.15em;
         line-height: 1.6em;
         color: white;
         font-weight: 900;
-        padding-right: 8px;
     }
 
-    .group-image img {
-        margin-right: 6px;
+    #groupsUsersButton .group-image img {
+        margin-left: 6px; /* Adjust if necessary, depending on the actual layout and spacing */
     }
-/* End NEW */                
 
+    #groupsUsersButton .group-name, 
+    #groupsUsersButton .user-name {
+        font-size: 1.15em;
+        line-height: 1.6em;
+        color: white;
+        font-weight: 900;
+    }
 
-	
-	
-	
-	
-	
-	
-	
-
-
+    #groupsUsersButton .user-name {
+        color: rgba(255,255,255,.7);
+        font-weight: 700;
+        font-family: 'HelveticaNeue', Helvetica, Arial, sans-serif;
+    }
+/* End NEW */               
 
 
     /* Generic Left and Right Panel Tabs */
@@ -309,7 +300,7 @@
     }
 	
 	
-		#left_panel_tab_list > li, {
+		#left_panel_tab_list > li {
 		    bottom:0px; left:0px; right:0px;
 		}
 		
@@ -324,11 +315,10 @@
 		
 		
         
-	        #left_panel_tab_list li a:hover, #annotation_tabs_list li a:hover;{
-	            text-decoration: none;
-	            background:rgba(255,255,255,.1);
-				color:white;
-	        }
+            #left_panel_tab_list li a:hover, #annotation_tabs_list li a:hover {
+                text-decoration: none;
+                background: rgba(255,255,255,.1);
+            }
         
         
     .right_panel_spinner {

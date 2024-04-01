@@ -20,6 +20,9 @@
 -->
 {% endcomment %}
 
+{% block link %}
+    <link rel="stylesheet" href="{% static "webclient/css/layout.css"|add:url_suffix %}" type="text/css" />
+{% endblock %}
 
 {% if groups %}
 <script>
@@ -92,7 +95,7 @@
 	    <!-- Group / User drop-down -->
         
         <div id="groupsUsersButton" title="Switch Group/User">
-            <div class="group-select-text">Group Select </div>
+            <div class="group-select-label">Group Select</div>
             <div class="group-image">
                 <img 
                 {% if active_group.getDetails.getPermissions.isGroupWrite %} src="{% static 'webclient/image/group_green16.png' %}"
@@ -106,7 +109,8 @@
                     {% endif %}
                 {% endif %} />
             </div>
-            <span>{{ active_group.name }}</span><span>{{ active_user.getFullName }}</span>
+            <div class="group-name">{{ active_group.name }}</div>
+            <div class="user-name">{{ active_user.getFullName }}</div>
         </div>
 
         <div id="listViewPort" class="dropdown"></div>

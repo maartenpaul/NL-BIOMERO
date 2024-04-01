@@ -10,8 +10,6 @@ COPY local_omeroweb_edits/get_images_for_login_page.py /script/
 COPY local_omeroweb_edits/login.html /script/
 COPY local_omeroweb_edits/Display_Images /images/
 
-
-
 RUN /opt/omero/web/venv3/bin/pip install \
         'django-cors-headers' \
         omero-figure \
@@ -36,9 +34,10 @@ ADD local_omeroweb_edits/01-default-webapps.omero /opt/omero/web/config
 ADD local_omeroweb_edits/Display_Images ./webclient/static/webclient/image/login_page_images/
 ADD local_omeroweb_edits/ome.login.css ./webgateway/static/webgateway/css/ome.login.css
 
-# Double-Click for better file browsing
+# Double-Click for better file browsing and improved groupsusersbutton
 ADD local_omeroweb_edits/group_user_dropdown2.html ./webclient/templates/webclient/base/includes/group_user_dropdown2.html
-ADD local_omeroweb_edits/layout.css ./layout.css
+ADD local_omeroweb_edits/layout.css ./webclient/static/webclient/css/layout.css
+
 
 # Improved top menu button clarity
 ADD local_omeroweb_edits/ome.header.css ./webgateway/static/webgateway/css/ome.header.css
