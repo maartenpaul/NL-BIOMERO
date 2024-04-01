@@ -38,9 +38,9 @@ ADD local_omeroweb_edits/ome.login.css ./webgateway/static/webgateway/css/ome.lo
 ADD local_omeroweb_edits/group_user_dropdown2.html ./webclient/templates/webclient/base/includes/group_user_dropdown2.html
 ADD local_omeroweb_edits/layout.css ./webclient/static/webclient/css/layout.css
 
-
 # Improved top menu button clarity
 ADD local_omeroweb_edits/ome.header.css ./webgateway/static/webgateway/css/ome.header.css
 ADD local_omeroweb_edits/script-text-play.svg ./webgateway/static/webgateway/img/script-text-play.svg
+
 USER omero-web
 

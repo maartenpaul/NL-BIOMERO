@@ -76,6 +76,7 @@
 		text-shadow: 0 1px 0px rgba(0,0,0,.4);
 		display:inline-block;
 		font-size:1.2em;
+		padding: .9em calc(1em + 1vw) .9em; /* Dynamic horizontal padding */
 	}
 	
 	#middle_header_left ul a:hover, #user_dropdown:hover, #public_login_button:hover {
@@ -85,13 +86,21 @@
 	}
 	
 	
-		
-
  	#logo {
  	    float: left;
 		margin: 5px 6px 0 10px;
 		position:relative;
  	}
+
+	@media (max-width: 1050px) {
+		#middle_header_logo {
+			display: inline-block; /* Allows the element to have width and height */
+			width: 20px; /* Set the width to act as a spacer */
+			height: 0; /* Minimize the height */
+			overflow: hidden; /* Hide the logo */
+			visibility: visible; /* Override visibility if previously set to hidden */
+		}
+	}
 	 	
 	 	
 	 #middle_header_right {
@@ -112,10 +121,8 @@
 
 			#middle_header_left li a, #show_user_dropdown, #show_public_login_button {
 				display: block;
-				padding: .9em 1em 1.1em;
+				padding: .9em calc(.3em + 0.5vw) .9em; /* Dynamic horizontal padding */
 			}
-			
-
 			
 
 				
