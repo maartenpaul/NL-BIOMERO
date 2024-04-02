@@ -8,11 +8,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       -
-        name: Load .env file (BIOMERO_VERSION)
-        uses: xom9ikk/dotenv@v2.3.0
-      -
         name: Checkout
         uses: actions/checkout@v4
+      -
+        name: Load .env file (BIOMERO_VERSION)
+        uses: xom9ikk/dotenv@v2.3.0
       -
         # Setting up Docker Buildx with docker-container driver is required
         # at the moment to be able to use a subdirectory with Git context
