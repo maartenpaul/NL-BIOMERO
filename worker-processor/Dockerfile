@@ -26,12 +26,6 @@ RUN yum install -y blosc-devel
 ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-11.0.20.0.8-1.el7_9.x86_64
 RUN export JAVA_HOME
 
-# RUN wget https://github.com/glencoesoftware/raw2ometiff/releases/download/v0.5.0/raw2ometiff-0.5.0.zip \
-#     ; unzip -d /opt raw2ometiff-0.5.0.zip \
-#     && rm raw2ometiff-0.5.0.zip
-# ENV PATH="$PATH:/opt/raw2ometiff-0.5.0/bin"
-# ENV PATH=/opt/ice-3.6.5-0.3.0/bin:$VIRTUAL_ENV/bin/:$PATH
-
 RUN wget https://github.com/glencoesoftware/bioformats2raw/releases/download/v0.7.0/bioformats2raw-0.7.0.zip \
     ; unzip -d /opt bioformats2raw-0.7.0.zip \
     && rm bioformats2raw-0.7.0.zip
