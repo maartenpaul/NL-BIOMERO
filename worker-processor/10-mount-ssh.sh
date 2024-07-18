@@ -10,10 +10,9 @@ if [[ -d /tmp/.ssh ]]; then
   # TODO: error on windows ? this didn't copy 'config'
   cp -R /tmp/.ssh /opt/omero/server/.ssh
   chmod 700 /opt/omero/server/.ssh
-  chmod 600 /opt/omero/server/.ssh/*
-  chmod 644 /opt/omero/server/.ssh/*.pub
-  chmod 644 /opt/omero/server/.ssh/known_hosts
-
+  chmod 600 /opt/omero/server/.ssh/* || true
+  chmod 644 /opt/omero/server/.ssh/*.pub || true
+  chmod 644 /opt/omero/server/.ssh/known_hosts || true
 fi
 
 exec "$@"
