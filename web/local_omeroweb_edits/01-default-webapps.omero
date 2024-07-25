@@ -33,3 +33,7 @@ config append -- omero.web.apps '"corsheaders"'
 config append -- omero.web.middleware '{"index": 0.5, "class": "corsheaders.middleware.CorsMiddleware"}'
 config append -- omero.web.middleware '{"index": 10, "class": "corsheaders.middleware.CorsPostCsrfMiddleware"}'
 config set -- omero.web.cors_origin_allow_all True
+
+# Webtest
+config append -- omero.web.apps '"omero_webtest"'
+config append -- omero.web.ui.right_plugins '[" ", "webtest/webclient_plugins/right_plugin.scripts.html", "scripts menu"]'
