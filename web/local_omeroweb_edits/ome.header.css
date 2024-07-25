@@ -223,7 +223,8 @@
 
 	/* NEW: Clearer Scripts and Activity button */
 		#scriptButton::before {
-			content: attr(title);
+			/* content: attr(title); */
+			content: "Scripts Menu";
 			background: url(../img/script-text-play.svg) no-repeat left center;
 			background-size: contain; /* or 'cover' depending on your needs */
 			padding-left: 27px; /* Adjust as needed */
@@ -238,29 +239,34 @@
 			display: flex;
 			align-items: center;
 			justify-content: flex-end; /* Align text to the right */
-			color: hsl(210,20%,90%); /* Lighter color */
+			color: white; /* Set font color to white */
+			background-color: rgb(51, 51, 51); /* Set background color */
 			font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; /* Font family from #middle_header_left a, #show_user_dropdown, #public_login_button */
 			font-weight: 500; /* Font weight from #middle_header_left a, #show_user_dropdown, #public_login_button */
 			text-shadow: 0 1px 0px rgba(0,0,0,.4); /* Text shadow from #middle_header_left a, #show_user_dropdown, #public_login_button */
 			font-size: 1.2em; /* Font size from #middle_header_left a, #show_user_dropdown, #public_login_button */
 			height: calc(100% - 1em); /* Adjust for padding */
+			border: none; /* Ensure no border is applied */
 		}
 
 		#launch_activities::before, #dataUploadButton::before {
 		    display: flex;
 		    align-items: center;
 		    justify-content: flex-start; /* Align text to the left */
-		    color: hsl(210,20%,90%); /* Lighter color */
+		    color: white; /* Set font color to white */
+		    background-color: rgb(51, 51, 51); /* Set background color */
 		    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; /* Font family from #middle_header_left a, #show_user_dropdown, #public_login_button */
 		    font-weight: 500; /* Font weight from #middle_header_left a, #show_user_dropdown, #public_login_button */
 		    text-shadow: 0 1px 0px rgba(0,0,0,.4); /* Text shadow from #middle_header_left a, #show_user_dropdown, #public_login_button */
 		    font-size: 1.2em; /* Font size from #middle_header_left a, #show_user_dropdown, #public_login_button */
 		    padding: 0.5em; /* Add padding */
 		    height: calc(100% - 1em); /* Adjust for padding */
+		    border: none; /* Ensure no border is applied */
 		}
 
 		#scriptButton:hover::before, #launch_activities:hover::before, #dataUploadButton:hover::before {
 			color: white; /* Color when hovered */
+			border: none; /* Ensure no border is applied on hover */
 		}
 		
 		#launch_activities::before{

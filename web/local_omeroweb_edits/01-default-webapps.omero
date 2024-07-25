@@ -36,4 +36,4 @@ config set -- omero.web.cors_origin_allow_all True
 
 # Webtest
 config append -- omero.web.apps '"omero_webtest"'
-config append -- omero.web.ui.right_plugins '[" ", "webtest/webclient_plugins/right_plugin.scripts.html", "scripts menu"]'
+config append -- omero.web.ui.right_plugins '["", "webtest/webclient_plugins/right_plugin.scripts.html", "scripts menu"]'

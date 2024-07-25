@@ -26,6 +26,7 @@ RUN /opt/omero/web/venv3/bin/pip install \
 
         #git+https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-amc-webtest.git \
 
+# Install the omero-webtest package
 RUN /opt/omero/web/venv3/bin/pip install /opt/omero/web/omero-webtest
 
 # Set the working directory
@@ -48,6 +49,10 @@ ADD local_omeroweb_edits/layout.css ./webclient/static/webclient/css/layout.css
 # Improved top menu button clarity
 ADD local_omeroweb_edits/ome.header.css ./webgateway/static/webgateway/css/ome.header.css
 ADD local_omeroweb_edits/script-text-play.svg ./webgateway/static/webgateway/img/script-text-play.svg
+
+# Changing the funciton of the script button to open the webtest widget
+ADD local_omeroweb_edits/script_launch_head.html ./webclient/templates/webclient/base/includes/script_launch_head.html
+
 
 USER omero-web
 
