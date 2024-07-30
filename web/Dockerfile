@@ -9,9 +9,9 @@ USER root
 COPY local_omeroweb_edits/get_images_for_login_page.py /script/
 COPY local_omeroweb_edits/login.html /script/
 COPY local_omeroweb_edits/Display_Images /images/
-#ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/omero-amc-webtest/commits?per_page=1" latest_commit
+#ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/omero-script-menu-widget/commits?per_page=1" latest_commit
 
-ADD local_omeroweb_edits/omero-webtest/ /opt/omero/web/omero-webtest
+ADD local_omeroweb_edits/omero-script-menu-widget/ /opt/omero/web/omero-script-menu-widget
 
 RUN /opt/omero/web/venv3/bin/pip install \
         'django-cors-headers' \
@@ -24,10 +24,10 @@ RUN /opt/omero/web/venv3/bin/pip install \
         omero-webtagging-tagsearch \
         whitenoise
 
-        #git+https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-amc-webtest.git \
+        #git+https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-script-menu-widget.git \
 
-# Install the omero-webtest package
-RUN /opt/omero/web/venv3/bin/pip install /opt/omero/web/omero-webtest
+# Install the omero-script-menu-widget package
+RUN /opt/omero/web/venv3/bin/pip install /opt/omero/web/omero-script-menu-widget
 
 # Set the working directory
 WORKDIR /opt/omero/web/venv3/lib/python3.9/site-packages/omeroweb
@@ -50,7 +50,7 @@ ADD local_omeroweb_edits/layout.css ./webclient/static/webclient/css/layout.css
 ADD local_omeroweb_edits/ome.header.css ./webgateway/static/webgateway/css/ome.header.css
 ADD local_omeroweb_edits/script-text-play.svg ./webgateway/static/webgateway/img/script-text-play.svg
 
-# Changing the funciton of the script button to open the webtest widget
+# Changing the funciton of the script button to open the script_menu_widget widget
 ADD local_omeroweb_edits/script_launch_head.html ./webclient/templates/webclient/base/includes/script_launch_head.html
 
 
