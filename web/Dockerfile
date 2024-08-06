@@ -50,9 +50,6 @@ ADD local_omeroweb_edits/layout.css ./webclient/static/webclient/css/layout.css
 ADD local_omeroweb_edits/ome.header.css ./webgateway/static/webgateway/css/ome.header.css
 ADD local_omeroweb_edits/script-text-play.svg ./webgateway/static/webgateway/img/script-text-play.svg
 
-# Changing the funciton of the script button to open the script_menu_widget widget
-# ADD local_omeroweb_edits/script_launch_head.html ./webclient/templates/webclient/base/includes/script_launch_head.html
-
 
 USER omero-web
 
