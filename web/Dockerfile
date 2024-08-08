@@ -9,7 +9,7 @@ USER root
 COPY local_omeroweb_edits/get_images_for_login_page.py /script/
 COPY local_omeroweb_edits/login.html /script/
 COPY local_omeroweb_edits/Display_Images /images/
-#ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/omero-script-menu-widget/commits?per_page=1" latest_commit
+ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/omero-script-menu-widget/commits?per_page=1" latest_commit
 
 ADD local_omeroweb_edits/omero-script-menu-widget/ /opt/omero/web/omero-script-menu-widget
 
@@ -22,12 +22,8 @@ RUN /opt/omero/web/venv3/bin/pip install \
         omero-parade \
         omero-webtagging-autotag \
         omero-webtagging-tagsearch \
-        whitenoise
-
-        #git+https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-script-menu-widget.git \
-
-# Install the omero-script-menu-widget package
-RUN /opt/omero/web/venv3/bin/pip install /opt/omero/web/omero-script-menu-widget
+        whitenoise \
+        git+https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-script-menu-widget.git
 
 # Set the working directory
 WORKDIR /opt/omero/web/venv3/lib/python3.9/site-packages/omeroweb
