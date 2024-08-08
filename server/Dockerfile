@@ -1,4 +1,4 @@
-FROM openmicroscopy/omero-server:5.6.10
+FROM openmicroscopy/omero-server:5.6.11
 
 ARG BIOMERO_VERSION
 

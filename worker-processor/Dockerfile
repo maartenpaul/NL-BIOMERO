@@ -1,4 +1,4 @@
-FROM openmicroscopy/omero-server:5.6.10
+FROM openmicroscopy/omero-server:5.6.11
 
 ARG BIOMERO_VERSION
 
@@ -43,6 +43,9 @@ RUN python3 -m venv $VIRTUAL_ENV \
     && python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3 omero-metadata==0.12.0
 
 ## Adjust processor code with AMC Processor
+# This version forwards HTTP(S) PROXY environment variables to the subprocesses (scripts)
+# See latest OME version @ https://raw.githubusercontent.com/ome/omero-py/master/src/omero/processor.py
+# Might need to merge important changes from time to time to keep this version compatible.
 COPY worker-processor/processor.py /opt/omero/server/venv3/lib/python3.9/site-packages/omero/
 
 ## Setup slurm-config for biomero
