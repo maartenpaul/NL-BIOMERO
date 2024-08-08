@@ -11,8 +11,6 @@ COPY local_omeroweb_edits/login.html /script/
 COPY local_omeroweb_edits/Display_Images /images/
 ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/omero-script-menu-widget/commits?per_page=1" latest_commit
 
-ADD local_omeroweb_edits/omero-script-menu-widget/ /opt/omero/web/omero-script-menu-widget
-
 RUN /opt/omero/web/venv3/bin/pip install \
         'django-cors-headers' \
         omero-figure \
