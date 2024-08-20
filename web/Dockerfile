@@ -9,7 +9,9 @@ USER root
 COPY local_omeroweb_edits/get_images_for_login_page.py /script/
 COPY local_omeroweb_edits/login.html /script/
 COPY local_omeroweb_edits/Display_Images /images/
-ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/omero-script-menu-widget/commits?per_page=1" latest_commit
+# Swirch thiese our  to install local app for development
+#ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/omero-script-menu-widget/commits?per_page=1" latest_commit
+ADD local_omeroweb_edits/omero-script-menu-widget /opt/omero/web/omero-script-menu-widget
 
 RUN /opt/omero/web/venv3/bin/pip install \
         'django-cors-headers' \
@@ -20,8 +22,12 @@ RUN /opt/omero/web/venv3/bin/pip install \
         omero-parade \
         omero-webtagging-autotag \
         omero-webtagging-tagsearch \
-        whitenoise \
-        git+https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-script-menu-widget.git
+        whitenoise
+        #whitenoise \
+        #git+https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-script-menu-widget.git
+
+# Install the omero-webtest package (comment in to install local app for development)
+RUN /opt/omero/web/venv3/bin/pip install /opt/omero/web/omero-script-menu-widget
 
 # Set the working directory
 WORKDIR /opt/omero/web/venv3/lib/python3.9/site-packages/omeroweb
@@ -30,7 +36,7 @@ WORKDIR /opt/omero/web/venv3/lib/python3.9/site-packages/omeroweb
 RUN python3.9 /script/get_images_for_login_page.py /images/ /script/login.html ./webclient/templates/webclient/login.html
 
 # Configuration file
-ADD local_omeroweb_edits/01-default-webapps.omero /opt/omero/web/config
+ADD local_omeroweb_edits/*.omero /opt/omero/web/config
 
 # New login logos image and style page
 ADD local_omeroweb_edits/Display_Images ./webclient/static/webclient/image/login_page_images/
