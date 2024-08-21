@@ -159,7 +159,9 @@ class ProcessI(omero.grid.Process, omero.util.SimpleServant):
             "PYTHONPATH",
             "HTTP_PROXY",
             "HTTPS_PROXY",
-            "FTP_PROXY"
+            "FTP_PROXY",
+            "PERSISTENCE_MODULE",
+            "SQLALCHEMY_URL"
         )
 
         # Since we know the location of our OMERO, we're going to

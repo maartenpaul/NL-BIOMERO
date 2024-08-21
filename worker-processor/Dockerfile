@@ -36,6 +36,11 @@ ENV PATH="$PATH:/opt/bioformats2raw-0.7.0/bin"
 # Invalidate cache for development builds
 # ADD "https://api.github.com/repos/NL-BioImaging/biomero/commits?per_page=1" latest_commit
 # and install from git intead of pypi 
+RUN yum -y install ack
+# Install psycopg2 system prerequisites for postgres interaction
+RUN yum install -y python3-devel postgresql-devel
+# Update PATH manually based on known locations
+ENV PATH="/usr/pgsql-12/bin:/usr/pgsql-14/bin:${PATH}"
 RUN python3 -m venv $VIRTUAL_ENV \
     && python3 -m pip install --upgrade pip \ 
     && python3 -m pip install biomero==${BIOMERO_VERSION} \

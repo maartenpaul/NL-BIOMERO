@@ -21,6 +21,21 @@ services:
     volumes:
       - "database:/var/lib/postgresql/data"
 
+  database-biomero:
+    # Define a prebuilt Postgres image with a version
+    image: "postgres:12"
+    # Define environment variables (user/pass here)
+    environment:
+      POSTGRES_USER: biomero
+      POSTGRES_DB: biomero
+      POSTGRES_PASSWORD: biomero
+    # Define named network to communicate with other containers
+    networks:
+      - omero
+    # Define named volumes to persist data on host after shutdown
+    volumes:
+      - "database-biomero-2:/var/lib/postgresql/data"
+
   # Name of our omero server, referenced in omero_master_host
   omeroserver:
     # This container uses the tag for the latest server release of OMERO 5
@@ -95,6 +110,8 @@ services:
       OMERO_WORKER_NAME: omeroworker-processor
       CONFIG_omero_logging_level: 10
       CONFIG_omero_scripts_timeout: 604800000
+      PERSISTENCE_MODULE: eventsourcing_sqlalchemy
+      SQLALCHEMY_URL: postgresql+psycopg2://biomero:biomero@database-biomero:5432/biomero
     # Named network to communicate with other containers
     networks:
       - omero
@@ -124,7 +141,29 @@ services:
     # volumes: 
       # In case of further development, add volumes for local_omeroweb_edits here
       # Once volumes are added, only omeroweb container reload necessary, not the whole docker-compose.
-      
+
+  # New Metabase service
+  metabase:
+    image: metabase/metabase@sha256:f7b5dc52c21aaa2dca910a450e7e6119a975090ce9fc80726aa0742882ca176c
+    container_name: metabase
+    hostname: metabase
+    environment:
+      # MB_DB_TYPE: postgres
+      # MB_DB_DBNAME: biomero
+      # MB_DB_PORT: 5432
+      # MB_DB_USER: biomero
+      # MB_DB_PASS: biomero
+      # MB_DB_HOST: database-biomero
+      MB_DB_FILE: /metabase-data/metabase.db
+      MB_USER: admin@biomero.com  # Admin user email
+      MB_PASSWORD: b1omero  # Admin user password
+    networks:
+      - omero
+    ports:
+      - "3000:3000"  # Expose Metabase on port 3000
+    volumes:
+      - "./metabase:/metabase-data" # Mount existing H2 db
+
 # Define the network(s) to communicate between containers
 networks:
   omero:
@@ -132,4 +171,5 @@ networks:
 # Define the named volume(s) to persist data to the host computer
 volumes:
   database:
+  database-biomero-2:
   omero:
