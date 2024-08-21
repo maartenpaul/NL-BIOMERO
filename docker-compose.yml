@@ -61,7 +61,7 @@ services:
       CONFIG_omero_server_nodedescriptors: >-
         master:Blitz-0
         omeroworker-1:Tables-0,Indexer-0,PixelData-0,DropBox,MonitorServer,FileServer,Storm
-        omeroworker-processor:Processor-0
+        biomeroworker:Processor-0
       CONFIG_omero_master_host: omeroserver
       ROOTPASS: omero
     # Define named network to communicate with other containers
@@ -93,7 +93,7 @@ services:
       - "omero:/OMERO"
 
   # Define our processor worker
-  omeroworker-processor:
+  biomeroworker:
     # Build this image locally from current map './'
     # This way we can share file access from Dockerfile in './worker-gpu'
     # Uses args to provide variables from '.env' file to the Dockerfile
@@ -107,7 +107,7 @@ services:
     # logging_level doesn't work, but should increase logging
     environment:
       CONFIG_omero_master_host: omeroserver
-      OMERO_WORKER_NAME: omeroworker-processor
+      OMERO_WORKER_NAME: biomeroworker
       CONFIG_omero_logging_level: 10
       CONFIG_omero_scripts_timeout: 604800000
       PERSISTENCE_MODULE: eventsourcing_sqlalchemy

@@ -135,7 +135,7 @@ To attach to a running container:
 
     docker-compose exec <name> /bin/bash
 
-Where `<name>` is e.g. `omeroworker-processor`
+Where `<name>` is e.g. `biomeroworker`
 
 Exit back to your commandline by typing `exit`.
 
