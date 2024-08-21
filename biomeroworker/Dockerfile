@@ -10,11 +10,11 @@ ENV PATH=/opt/ice-3.6.5-0.3.0/bin:$VIRTUAL_ENV/bin/:$PATH
 RUN yum -y install git 
 
 ## Replace the default configuration files
-COPY worker-processor/ice.config worker-processor/worker.cfg /opt/omero/server/OMERO.server/etc/templates/
+COPY biomeroworker/ice.config biomeroworker/worker.cfg /opt/omero/server/OMERO.server/etc/templates/
 
 ## Install SSH client
 RUN yum install -y openssh-clients
-COPY worker-processor/10-mount-ssh.sh /startup/10-mount-ssh.sh
+COPY biomeroworker/10-mount-ssh.sh /startup/10-mount-ssh.sh
 RUN chmod +x /startup/10-mount-ssh.sh
 
 ## Setup OME ZARR & TIFF modules for data export
@@ -42,8 +42,7 @@ RUN yum install -y python3-devel postgresql-devel
 # Update PATH manually based on known locations
 ENV PATH="/usr/pgsql-12/bin:/usr/pgsql-14/bin:${PATH}"
 RUN python3 -m venv $VIRTUAL_ENV \
-    && python3 -m pip install --upgrade pip \ 
-    && python3 -m pip install biomero==${BIOMERO_VERSION} \
+    && python3 -m pip install --upgrade pip \
     # && python3 -m pip install 'git+https://github.com/NL-BioImaging/biomero' \
     && python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3 omero-metadata==0.12.0
 
@@ -51,13 +50,13 @@ RUN python3 -m venv $VIRTUAL_ENV \
 # This version forwards HTTP(S) PROXY environment variables to the subprocesses (scripts)
 # See latest OME version @ https://raw.githubusercontent.com/ome/omero-py/master/src/omero/processor.py
 # Might need to merge important changes from time to time to keep this version compatible.
-COPY worker-processor/processor.py /opt/omero/server/venv3/lib/python3.9/site-packages/omero/
+COPY biomeroworker/processor.py /opt/omero/server/venv3/lib/python3.9/site-packages/omero/
 
 ## Setup slurm-config for biomero
-COPY worker-processor/slurm-config.ini /etc/slurm-config.ini
+COPY biomeroworker/slurm-config.ini /etc/slurm-config.ini
 
 ## OMERO: Replace the default startup scripts
 RUN rm /startup/60-database.sh
-COPY worker-processor/99-run.sh /startup/99-run.sh
+COPY biomeroworker/99-run.sh /startup/99-run.sh
 RUN chmod +x /startup/99-run.sh
 USER omero-server

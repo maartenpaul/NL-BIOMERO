@@ -26,7 +26,7 @@ Setup the connection with Slurm:
 
 First, setup a configuration file, e.g. take the local slurm:
 
-    cp worker-processor/slurm-config.localslurm.ini worker-processor/slurm-config.ini
+    cp biomeroworker/slurm-config.localslurm.ini biomeroworker/slurm-config.ini
 
 Next, actually setup a local Slurm that matches this config.
 

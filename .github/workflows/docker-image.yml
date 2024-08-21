@@ -86,7 +86,7 @@ jobs:
         with:
           context: "{{defaultContext}}"
           push: true
-          file: ./worker-processor/Dockerfile
+          file: ./biomeroworker/Dockerfile
           tags: ${{ steps.meta-biomero.outputs.tags }}
           labels: ${{ steps.meta-biomero.outputs.labels }}
           build-args: |

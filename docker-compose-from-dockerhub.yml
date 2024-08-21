@@ -81,7 +81,7 @@ services:
     # Uses args to provide variables from '.env' file to the Dockerfile
     # build: 
     #   context: ./
-    #   dockerfile: ./worker-processor/Dockerfile
+    #   dockerfile: ./biomeroworker/Dockerfile
     image: "cellularimagingcf/biomero:${NL_BIOMERO_VERSION:-latest}"
     # Define variables for use in the container.
     # WORKER_NAME is used in the omero/ice node description
@@ -98,7 +98,7 @@ services:
     volumes:
       - "omero:/OMERO"
       - "~/.ssh:/tmp/.ssh:ro"
-      - "./worker-processor/slurm-config.ini:/etc/slurm-config.ini"
+      - "./biomeroworker/slurm-config.ini:/etc/slurm-config.ini"
 
   # Service for the omero.web UI
   omeroweb:
