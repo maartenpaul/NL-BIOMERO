@@ -32,6 +32,9 @@ WORKDIR /opt/omero/web/venv3/lib/python3.9/site-packages/omeroweb
 # Run the script to update the login.html file
 RUN python3.9 /script/get_images_for_login_page.py /images/ /script/login.html ./webclient/templates/webclient/login.html
 
+# Configuration file
+ADD local_omeroweb_edits/01-default-webapps.omero /opt/omero/web/config
+
 # New login logos image and style page
 ADD local_omeroweb_edits/Display_Images ./webclient/static/webclient/image/login_page_images/
 ADD local_omeroweb_edits/ome.login.css ./webgateway/static/webgateway/css/ome.login.css
