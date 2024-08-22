@@ -10,6 +10,16 @@ COPY local_omeroweb_edits/get_images_for_login_page.py /script/
 COPY local_omeroweb_edits/login.html /script/
 COPY local_omeroweb_edits/Display_Images /images/
 
+# For development of omero-script-menu-widget:
+        
+        # Uncommnet:
+        #ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/omero-script-menu-widget/commits?per_page=1" latest_commit
+
+        # Replace omero-script-menu-widget==v.v.v with:
+        #git+https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-script-menu-widget.git
+
+        # Followed by RUN /opt/omero/web/venv3/bin/omero-script-menu-widget-setup
+
 RUN /opt/omero/web/venv3/bin/pip install \
         'django-cors-headers' \
         omero-figure \
@@ -20,9 +30,10 @@ RUN /opt/omero/web/venv3/bin/pip install \
         omero-webtagging-autotag \
         omero-webtagging-tagsearch \
         whitenoise \
-        omero-script-menu-widget==1.0.10
+        omero-script-menu-widget==1.1.0
 
-# Install the omero-webtest package (comment in to install local app for development)
+
+# Implement the script menu widget, replacing the native functionality of the script button in the header
 RUN /opt/omero/web/venv3/bin/omero-script-menu-widget-setup
 
 # Set the working directory
