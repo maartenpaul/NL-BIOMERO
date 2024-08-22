@@ -13,7 +13,6 @@ if [[ -d /tmp/.ssh ]]; then
   chmod 600 /opt/omero/server/.ssh/*
   chmod 644 /opt/omero/server/.ssh/*.pub
   chmod 644 /opt/omero/server/.ssh/known_hosts
-
 fi
 
 exec "$@"
