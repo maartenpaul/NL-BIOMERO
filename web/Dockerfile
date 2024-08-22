@@ -10,16 +10,6 @@ COPY local_omeroweb_edits/get_images_for_login_page.py /script/
 COPY local_omeroweb_edits/login.html /script/
 COPY local_omeroweb_edits/Display_Images /images/
 
-# For development of omero-script-menu-widget:
-        
-        # Uncommnet:
-        #ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/omero-script-menu-widget/commits?per_page=1" latest_commit
-
-        # Replace omero-script-menu-widget==v.v.v with:
-        #git+https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-script-menu-widget.git
-
-        # Followed by RUN /opt/omero/web/venv3/bin/omero-script-menu-widget-setup
-
 RUN /opt/omero/web/venv3/bin/pip install \
         'django-cors-headers' \
         omero-figure \
@@ -41,9 +31,6 @@ WORKDIR /opt/omero/web/venv3/lib/python3.9/site-packages/omeroweb
 
 # Run the script to update the login.html file
 RUN python3.9 /script/get_images_for_login_page.py /images/ /script/login.html ./webclient/templates/webclient/login.html
-
-# Configuration file
-ADD local_omeroweb_edits/*.omero /opt/omero/web/config
 
 # New login logos image and style page
 ADD local_omeroweb_edits/Display_Images ./webclient/static/webclient/image/login_page_images/
