@@ -9,9 +9,6 @@ USER root
 COPY local_omeroweb_edits/get_images_for_login_page.py /script/
 COPY local_omeroweb_edits/login.html /script/
 COPY local_omeroweb_edits/Display_Images /images/
-# Swirch thiese our  to install local app for development
-#ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/omero-script-menu-widget/commits?per_page=1" latest_commit
-ADD local_omeroweb_edits/omero-script-menu-widget /opt/omero/web/omero-script-menu-widget
 
 RUN /opt/omero/web/venv3/bin/pip install \
         'django-cors-headers' \
@@ -22,12 +19,11 @@ RUN /opt/omero/web/venv3/bin/pip install \
         omero-parade \
         omero-webtagging-autotag \
         omero-webtagging-tagsearch \
-        whitenoise
-        #whitenoise \
-        #git+https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-script-menu-widget.git
+        whitenoise \
+        omero-script-menu-widget==1.0.10
 
 # Install the omero-webtest package (comment in to install local app for development)
-RUN /opt/omero/web/venv3/bin/pip install /opt/omero/web/omero-script-menu-widget
+RUN /opt/omero/web/venv3/bin/omero-script-menu-widget-setup
 
 # Set the working directory
 WORKDIR /opt/omero/web/venv3/lib/python3.9/site-packages/omeroweb
