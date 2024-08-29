@@ -26,7 +26,7 @@
 /* Carrousell */
 .carousel-container {
     width: 100%;
-    height: 40vh; /* % of the viewport height */
+    height: 30vh; /* % of the viewport height */
     margin: 0 auto 20px;
     overflow: hidden;
     position: relative;
@@ -38,9 +38,9 @@
 }
 
 .carousel-image {
-    flex: 0 0 100%;
-    width: 100%;
+    flex: 0 0 auto;
     height: 100%;
+    width: auto;
     object-fit: cover;
 }
 
@@ -77,10 +77,10 @@
 }
 
 #login {
-    width: 370px;
+    width: 350px;
     margin: 0 auto;
     color: #333;
-    padding-top: 20px; /* Add some space between carousel and login form */
+    padding-top: 20px;
 }
 
 	#login form {
@@ -330,4 +330,17 @@
     text-shadow: 0 1px 0 rgba(255,255,255,.5);
     border-top: 1px solid #ddd;
     padding-top: 15px;
+}
+
+/* Banner styles */
+.banner-container {
+    width: 100%;
+    max-width: 350px; /* Match the width of the standard form */
+    margin: 20px auto;
+    text-align: center;
+}
+
+.banner-image {
+    max-width: 100%;
+    height: auto;
 }

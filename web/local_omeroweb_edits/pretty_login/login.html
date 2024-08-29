@@ -84,22 +84,17 @@
 
     function setupCarousel() {
         if (images.length > 0) {
-            images.forEach(function(imageSrc) {
-                var img = document.createElement('img');
-                img.src = imageSrc;
-                img.className = 'carousel-image';
-                carouselTrack.appendChild(img);
-            });
+            // Create three copies of the images
+            for (let i = 0; i < 3; i++) {
+                images.forEach(function(imageSrc) {
+                    var img = document.createElement('img');
+                    img.src = imageSrc;
+                    img.className = 'carousel-image';
+                    carouselTrack.appendChild(img);
+                });
+            }
 
-            // Clone all images and append them to the end for seamless looping
-            images.forEach(function(imageSrc) {
-                var img = document.createElement('img');
-                img.src = imageSrc;
-                img.className = 'carousel-image';
-                carouselTrack.appendChild(img);
-            });
-
-            totalWidth = images.length * 100; // Total width in percentage
+            totalWidth = images.length * 100 * 3; // Total width in percentage (3 times the original)
         }
     }
 
@@ -116,6 +111,11 @@
     setupCarousel();
     animateCarousel();
 </script>
+
+<!-- Add the banner here -->
+<div class="banner-container">
+    <img src="{% static 'webclient/image/login_page_images/AmsterdamUMC-logo.png' %}" alt="Amsterdam UMC Logo" class="banner-image">
+</div>
 
 <div id="login">
     {% block login %}
