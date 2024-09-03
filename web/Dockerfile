@@ -19,7 +19,12 @@ RUN /opt/omero/web/venv3/bin/pip install \
         omero-parade \
         omero-webtagging-autotag \
         omero-webtagging-tagsearch \
-        whitenoise
+        whitenoise \
+        omero-script-menu-widget==1.1.1
+
+
+# Implement the script menu widget, replacing the native functionality of the script button in the header
+RUN /opt/omero/web/venv3/bin/omero-script-menu-widget-setup
 
 # Set the working directory
 WORKDIR /opt/omero/web/venv3/lib/python3.9/site-packages/omeroweb
@@ -41,6 +46,7 @@ ADD local_omeroweb_edits/layout.css ./webclient/static/webclient/css/layout.css
 # Improved top menu button clarity
 ADD local_omeroweb_edits/ome.header.css ./webgateway/static/webgateway/css/ome.header.css
 ADD local_omeroweb_edits/script-text-play.svg ./webgateway/static/webgateway/img/script-text-play.svg
+
 
 USER omero-web
 
