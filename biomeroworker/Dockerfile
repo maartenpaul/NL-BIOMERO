@@ -38,7 +38,7 @@ ENV PATH="$PATH:/opt/bioformats2raw-0.7.0/bin"
 # and install from git intead of pypi 
 RUN yum -y install ack
 # Install psycopg2 system prerequisites for postgres interaction
-RUN yum install -y python3-devel postgresql-devel
+RUN yum install -y python3-devel postgresql-devel gcc
 # Update PATH manually based on known locations
 ENV PATH="/usr/pgsql-12/bin:/usr/pgsql-14/bin:${PATH}"
 RUN python3 -m venv $VIRTUAL_ENV \
