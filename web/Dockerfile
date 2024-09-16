@@ -40,11 +40,15 @@ ADD local_omeroweb_edits/pretty_login/ome.login.css ./webgateway/static/webgatew
 ADD local_omeroweb_edits/01-default-webapps.omero /opt/omero/web/config
 
 # Double-Click for better file browsing and improved groupsusersbutton
-ADD local_omeroweb_edits/group_user_dropdown2.html ./webclient/templates/webclient/base/includes/group_user_dropdown2.html
-ADD local_omeroweb_edits/layout.css ./webclient/static/webclient/css/layout.css
+ADD local_omeroweb_edits/better_buttons/group_user_dropdown2.html ./webclient/templates/webclient/base/includes/group_user_dropdown2.html
+ADD local_omeroweb_edits/better_buttons/layout.css ./webclient/static/webclient/css/layout.css
+
+# Removing Shares tab and button in left-side menu
+ADD local_omeroweb_edits/better_buttons/containers.html ./webclient/templates/webclient/data/containers.html
+ADD local_omeroweb_edits/better_buttons/public.html ./webclient/templates/webclient/public/public.html
 
 # Improved top menu button clarity
-ADD local_omeroweb_edits/ome.header.css ./webgateway/static/webgateway/css/ome.header.css
+ADD local_omeroweb_edits/better_buttons/ome.header.css ./webgateway/static/webgateway/css/ome.header.css
 ADD local_omeroweb_edits/script-text-play.svg ./webgateway/static/webgateway/img/script-text-play.svg
 
 
