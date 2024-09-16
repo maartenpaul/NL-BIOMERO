@@ -1,4 +1,4 @@
-FROM openmicroscopy/omero-web-standalone:5.24.0
+FROM openmicroscopy/omero-web-standalone:5.27.2
 
 USER root
 # TODO change the notes to reflect the login_page_carrousell changes
