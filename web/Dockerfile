@@ -8,7 +8,7 @@ USER root
 # Copy the script and images
 COPY local_omeroweb_edits/pretty_login/get_images_for_login_page.py /script/
 COPY local_omeroweb_edits/pretty_login/login.html /script/
-COPY local_omeroweb_edits/pretty_login/login_page_carrousell /images/
+COPY local_omeroweb_edits/pretty_login/institution_banner /images/
 
 RUN /opt/omero/web/venv3/bin/pip install \
         'django-cors-headers' \
@@ -33,7 +33,6 @@ WORKDIR /opt/omero/web/venv3/lib/python3.9/site-packages/omeroweb
 RUN python3.9 /script/get_images_for_login_page.py /images/ /script/login.html ./webclient/templates/webclient/login.html
 
 # Login logos image and style page
-ADD local_omeroweb_edits/pretty_login/login_page_carrousell ./webclient/static/webclient/image/login_page_carrousell/
 ADD local_omeroweb_edits/pretty_login/login_page_images ./webclient/static/webclient/image/login_page_images/
 ADD local_omeroweb_edits/pretty_login/ome.login.css ./webgateway/static/webgateway/css/ome.login.css
 

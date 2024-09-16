@@ -53,11 +53,6 @@
 
 <div style="margin: auto">
     <div class="login-logos">
-        <div class="carousel-container">
-            <div class="carousel-track" id="carouselTrack">
-                <!-- Images will be dynamically added here -->
-            </div>
-        </div>
     </div>
 </div>
 
@@ -77,39 +72,23 @@
 
     // Image Array Placeholder
 
-    var currentPosition = 0;
-    var carouselTrack = document.getElementById('carouselTrack');
-    var animationSpeed = 0.04; // Change speed of the carrousell
-    var totalWidth;
+    var currentImageIndex = 0;
 
-    function setupCarousel() {
-        if (images.length > 0) {
-            // Create three copies of the images
-            for (let i = 0; i < 3; i++) {
-                images.forEach(function(imageSrc) {
-                    var img = document.createElement('img');
-                    img.src = imageSrc;
-                    img.className = 'carousel-image';
-                    carouselTrack.appendChild(img);
-                });
-            }
+    function changeImage() {
+        // Change the image source
+        document.getElementById('dynamic-image').src = images[currentImageIndex];
 
-            totalWidth = images.length * 100 * 3; // Total width in percentage (3 times the original)
-        }
+        // Update the index to point to the next image
+        currentImageIndex = (currentImageIndex + 1) % images.length;
     }
 
-    function animateCarousel() {
-        currentPosition -= animationSpeed;
-        if (currentPosition <= -totalWidth) {
-            currentPosition += totalWidth;
-        }
-        carouselTrack.style.transform = 'translateX(' + currentPosition + '%)';
-        requestAnimationFrame(animateCarousel);
-    }
+    // Change image every 5 seconds
+    setInterval(changeImage, 5000);
 
-    // Initialize the carousel
-    setupCarousel();
-    animateCarousel();
+    // Initialize with the first image
+    if(images.length > 0) {
+        changeImage();
+    }
 </script>
 
 <!-- Add the banner here -->
@@ -177,11 +156,11 @@
 <div class="footer-content">
     <a href="https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO" class="footer-section custom-banner" target="_blank" rel="noopener noreferrer">
         <img src="{% static 'webclient/image/login_page_images/Cellular Imaging.png' %}" alt="Cellular Imaging Icon" class="section-icon">
-        <p class="section-text">Cellular Imaging, Amsterdam UMC <br> BIOMERO and other developments</p>
+        <p class="section-text">Cellular Imaging, Amsterdam UMC <br> Developing data managment and analysis <br> for your research</p>
     </a>
     <a href="https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO-Automated-Data-Import" class="footer-section uploader-section" target="_blank" rel="noopener noreferrer">
         <img src="{% static 'webclient/image/login_page_images/CI-OMEROUpload.png' %}" alt="CI-OMEROUpload Icon" class="section-icon">
-        <p class="section-text">To upload your own data,<br>install our custom Uploader</p>
+        <p class="section-text">Learn to upload your own data!</p>
     </a>
 </div>
 
