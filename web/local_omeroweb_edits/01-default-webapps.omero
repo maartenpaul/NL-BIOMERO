@@ -25,7 +25,7 @@ config append -- omero.web.apps '"omero_fpbioimage"'
 config append -- omero.web.open_with '["omero_fpbioimage", "fpbioimage_index", {"script_url": "fpbioimage/openwith.js", "supported_objects": ["image"], "label": "FPBioimage"}]'
 
 # Top links
-config set -- omero.web.ui.top_links '[["Data", "webindex", {"title": "Browse Data via Projects, Tags etc"}],["Upload History", "history", {"title": "Upload History"}], ["Annotation Search", {"viewname": "maprindex_anyvalue"}, {"title": "Annotation Search"}], ["Figure", "figure_index", {"title": "Open Figure in new tab", "target": "_blank"}], ["Help", "https://help.openmicroscopy.org/", {"title":"Open OMERO user guide in a new tab", "target":"new"}]]'
+config set -- omero.web.ui.top_links '[["Data", "webindex", {"title": "Browse Data via Projects, Tags etc"}], ["Annotation Search", {"viewname": "maprindex_anyvalue"}, {"title": "Annotation Search"}], ["Figure", "figure_index", {"title": "Open Figure in new tab", "target": "_blank"}], ["Help", "https://help.openmicroscopy.org/", {"title":"Open OMERO user guide in a new tab", "target":"new"}]]'
 
 # enable CORS so e.g. react-webapp can connect to OMERO.web on different origin
 # See https://docs.openmicroscopy.org/latest/omero/sysadmins/unix/install-web.html
