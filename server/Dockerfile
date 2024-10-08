@@ -11,7 +11,7 @@ USER omero-server
 # ADD "https://api.github.com/repos/NL-BioImaging/biomero-scripts/commits?per_page=1" latest_comm
 # Now just pulling released / tagged versions
 RUN  cd /opt/omero/server/OMERO.server/lib/scripts/ && \
-    git clone --depth 1 --branch ${BIOMERO_VERSION} https://github.com/NL-BioImaging/biomero-scripts.git biomero
+    git clone --depth 1 --branch database https://github.com/NL-BioImaging/biomero-scripts.git biomero
     # git clone --depth 1 https://github.com/NL-BioImaging/biomero-scripts.git biomero
 
 # Overwrite ICE configuration

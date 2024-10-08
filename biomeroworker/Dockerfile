@@ -43,7 +43,8 @@ RUN yum install -y python3-devel postgresql-devel gcc
 ENV PATH="/usr/pgsql-12/bin:/usr/pgsql-14/bin:${PATH}"
 RUN python3 -m venv $VIRTUAL_ENV \
     && python3 -m pip install --upgrade pip \
-    # && python3 -m pip install 'git+https://github.com/NL-BioImaging/biomero' \
+    # && python3 -m pip install biomero==${BIOMERO_VERSION} \
+    && python3 -m pip install 'git+https://github.com/NL-BioImaging/biomero.git@database' \
     && python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3 omero-metadata==0.12.0
 
 ## Adjust processor code with AMC Processor
