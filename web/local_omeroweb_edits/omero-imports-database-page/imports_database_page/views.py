@@ -20,6 +20,7 @@ def webclient_templates_import_datase(request, base_template, **kwargs):
     template_name = 'importsdatabase/webgateway/%s.html' % base_template
     return {'template': template_name}
 
+#TODO: Add a way to pass into the iframe the user to modulate permissions
 @login_required()
 def get_imports_database(request, conn=None, **kwargs):
     pass

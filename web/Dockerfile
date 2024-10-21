@@ -10,6 +10,10 @@ COPY local_omeroweb_edits/pretty_login/get_images_for_login_page.py /script/
 COPY local_omeroweb_edits/pretty_login/login.html /script/
 COPY local_omeroweb_edits/pretty_login/institution_banner /images/
 
+
+# local omero-imports-database repo - Development
+ADD local_omeroweb_edits/omero-imports-database-page/ /opt/omero/web/omero-imports-database-page/
+
 RUN /opt/omero/web/venv3/bin/pip install \
         'django-cors-headers' \
         omero-figure \
@@ -22,9 +26,12 @@ RUN /opt/omero/web/venv3/bin/pip install \
         whitenoise \
         omero-script-menu-widget==1.1.1
 
-
 # Implement the script menu widget, replacing the native functionality of the script button in the header
 RUN /opt/omero/web/venv3/bin/omero-script-menu-widget-setup
+
+# Implement the imports database page, extending the native functionality of the middle header
+# Development - switch for a setup script when pip install is ready
+RUN /opt/omero/web/venv3/bin/pip install /opt/omero/web/omero-imports-database-page/
 
 # Set the working directory
 WORKDIR /opt/omero/web/venv3/lib/python3.9/site-packages/omeroweb
