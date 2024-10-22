@@ -53,10 +53,16 @@
 
 {% block content %}
     <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
         body {
             display: flex;
             flex-direction: column;
-            height: 100vh;
         }
 
         #middle_header_wrapper {
@@ -64,21 +70,27 @@
         }
 
         #content {
-            flex: 1 1 auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
         }
 
         #center_details {
-            height: 100%;
+            flex: 1;
             overflow: hidden;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            border-color: black;
         }
 
         #metabase-dashboard {
             width: 100%;
-            height: calc(100% - 35px); /* Adjust height to account for the header */
+            height: 100%;
             border: none;
-            overflow: hidden;
         }
+
         #metabase-dashboard iframe {
             width: 100%;
             height: 100%;
