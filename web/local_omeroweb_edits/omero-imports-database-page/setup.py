@@ -49,7 +49,7 @@ setup(
     license='AGPL-3.0',
     url="",  # You can leave this blank for a local project
     keywords=['OMERO.web', 'plugin', 'imports database'],
-    install_requires=['omero-web>=5.6.0'],
+    install_requires=['omero-web>=5.6.0', 'pyjwt'],
     python_requires='>=3',
     include_package_data=True,
     zip_safe=False,
