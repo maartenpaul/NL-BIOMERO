@@ -21,10 +21,7 @@
 # Version: 1.0
 
 import os
-import sys
 from setuptools import setup, find_packages
-from setuptools.command.install import install
-from distutils.file_util import copy_file
 
 # Utility function to read the README file.
 def read(fname):
@@ -32,47 +29,38 @@ def read(fname):
 
 setup(
     name="omero-imports-database-page",
-    use_scm_version=True,
-    setup_requires=['setuptools_scm'],
+    version="0.1.0",  # Set your local version number
     packages=find_packages(exclude=['ez_setup']),
-    description="A Python plugin for OMERO.web",
+    description="A Python plugin for OMERO.web to display imports database page",
     long_description=read('README.rst'),
     classifiers=[
-        'Development Status :: 5 - Production/Stable',
+        'Development Status :: 3 - Alpha',
         'Environment :: Web Environment',
         'Framework :: Django',
         'Intended Audience :: Developers',
         'Natural Language :: English',
         'Operating System :: OS Independent',
-        'Programming Language :: JavaScript',
         'Programming Language :: Python :: 3',
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
-        'Topic :: Internet :: WWW/HTTP :: WSGI',
-        'Topic :: Scientific/Engineering :: Visualization',
-        'Topic :: Software Development :: Libraries :: '
-        'Application Frameworks',
-        'Topic :: Software Development :: Testing',
-        'Topic :: Text Processing :: Markup :: HTML'
     ],
-    author='The Open Microscopy Team',
-    author_email='rrosas@amsterdamumc.nl',
+    author='Your Name',
+    author_email='your.email@example.com',
     license='AGPL-3.0',
-    url="https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-script-menu-widget/tree/master",
-    download_url='https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-script-menu-widget/archive/refs/heads/master.zip',
-    keywords=['OMERO.web', 'plugin'],
+    url="",  # You can leave this blank for a local project
+    keywords=['OMERO.web', 'plugin', 'imports database'],
     install_requires=['omero-web>=5.6.0'],
     python_requires='>=3',
     include_package_data=True,
     zip_safe=False,
     package_data={
         'imports_database_page': [
-            'templates/importsdatabase/webclient_plugins/iframe_imports_metabase.html',
+            'templates/importsdatabase/webclient_plugins/imports_database_page.html',
         ],
     },
     entry_points={
         'console_scripts': [
-            'omero-imports-database-page=imports_database_page.setup_integration:main',
+            'omero-imports-database-page-setup=imports_database_page.setup_integration:main',
         ],
     },
 )

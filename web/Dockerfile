@@ -32,7 +32,7 @@ RUN /opt/omero/web/venv3/bin/omero-script-menu-widget-setup
 # Implement the imports database page, extending the native functionality of the middle header
 # Development - switch for a setup script when pip install is ready
 RUN /opt/omero/web/venv3/bin/pip install /opt/omero/web/omero-imports-database-page/
-
+RUN /opt/omero/web/venv3/bin/omero-script-menu-widget-setup
 # Set the working directory
 WORKDIR /opt/omero/web/venv3/lib/python3.9/site-packages/omeroweb
 
