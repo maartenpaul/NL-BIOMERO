@@ -1,0 +1,3 @@
+# OMERO.web configuration extension of imports_database_page
+config append -- omero.web.apps '"imports_database_page"'
+config append -- omero.web.ui.top_links '["Imports", "importsdatabase/webclient_plugins/imports_database_page.html", "imports database", {"title": "Browse your imports status and history"}]'

@@ -4,7 +4,7 @@ import sys
 def update_login_html(image_directory, html_file, destination_file):
     image_files = [f for f in os.listdir(image_directory) if os.path.isfile(os.path.join(image_directory, f))]
     # Generate a JavaScript array of image paths
-    image_paths = ['"{{% static \'webclient/image/login_page_images/{}\' %}}"'.format(f) for f in image_files]
+    image_paths = ['"{{% static \'webclient/image/institution_banner/{}\' %}}"'.format(f) for f in image_files]
     image_array = 'var images = [{}];'.format(', '.join(image_paths))
 
     with open(html_file, 'r') as file:

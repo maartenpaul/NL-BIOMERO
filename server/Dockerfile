@@ -7,6 +7,10 @@ ARG BIOMERO_VERSION
 USER root
 RUN yum -y install git 
 USER omero-server
+
+# Configuration file
+ADD server/01-ldap-config.omero /opt/omero/server/config/
+
 # Invalidate cache for development builds
 # ADD "https://api.github.com/repos/NL-BioImaging/biomero-scripts/commits?per_page=1" latest_comm
 # Now just pulling released / tagged versions
@@ -21,4 +25,3 @@ RUN  cd /opt/omero/server/OMERO.server/lib/scripts/ && \
 
 # entrypoint from omero-server dockerfile: 
 # run all /startup/* scripts in alphabetic/numerical order.
-
