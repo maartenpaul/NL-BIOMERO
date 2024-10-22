@@ -17,8 +17,6 @@
 
             var iframe = $('<iframe>', {
                 src: iframeUrl,
-                width: '100%',
-                height: '100%',
                 frameborder: 0
             });
             $('#metabase-dashboard').append(iframe);
@@ -54,9 +52,43 @@
 {% endblock %}
 
 {% block content %}
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #middle_header_wrapper {
+            flex: 0 0 auto;
+        }
+
+        #content {
+            flex: 1 1 auto;
+            overflow: hidden;
+        }
+
+        #center_details {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #metabase-dashboard {
+            width: 100%;
+            height: calc(100% - 35px); /* Adjust height to account for the header */
+            border: none;
+            overflow: hidden;
+        }
+        #metabase-dashboard iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
     <div id="center_details">
         {% if ome.message %}<div class="error">{{ ome.message|safe|linebreaks }}</div>{% endif %}
         <!-- Metabase Dashboard -->
-        <div id="metabase-dashboard" style="height: 800px;"></div>
+        <div id="metabase-dashboard"></div>
     </div>
 {% endblock %}
+
