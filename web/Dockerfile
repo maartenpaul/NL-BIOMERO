@@ -25,7 +25,7 @@ RUN /opt/omero/web/venv3/bin/pip install \
         omero-webtagging-tagsearch \
         whitenoise \
         omero-script-menu-widget==1.1.1\
-        omero-imports-database-page==0.1.0
+        omero-imports-database-page==0.0.3
 
 # Implement the script menu widget, replacing the native functionality of the script button in the header
 RUN /opt/omero/web/venv3/bin/omero-script-menu-widget-setup
@@ -33,7 +33,7 @@ RUN /opt/omero/web/venv3/bin/omero-script-menu-widget-setup
 # Implement the imports database page, extending the native functionality of the middle header
 # Development - switch for a setup script when pip install is ready
 # RUN /opt/omero/web/venv3/bin/pip install /opt/omero/web/omero-imports-database-page/
-RUN /opt/omero/web/venv3/bin/omero-script-menu-widget-setup
+RUN /opt/omero/web/venv3/bin/omero-imports-database-page-setup
 
 # Set the working directory
 WORKDIR /opt/omero/web/venv3/lib/python3.9/site-packages/omeroweb

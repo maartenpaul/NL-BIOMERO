@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from django.shortcuts import render
 from omeroweb.webclient.decorators import login_required, render_response
 import logging
 import jwt
-from django.conf import settings
 import time
 
 logger = logging.getLogger(__name__)
@@ -12,8 +10,8 @@ logger = logging.getLogger(__name__)
 @login_required()
 @render_response()
 def imports_database_page(request, conn=None, **kwargs):
-    METABASE_SITE_URL = "https://omero-acc.amc.nl/dashboard"
-    METABASE_SECRET_KEY = "1f8e2c8ae6450b1035fe5ac9219a8f34702ab3cb01b1c3c767cfb55922c1d881"
+    metabase_site_url = "https://omero-acc.amc.nl/dashboard"
+    metabase_secret_key = "1f8e2c8ae6450b1035fe5ac9219a8f34702ab3cb01b1c3c767cfb55922c1d881"
 
     # Get the current user's information
     current_user = conn.getUser()
@@ -27,10 +25,10 @@ def imports_database_page(request, conn=None, **kwargs):
         },
         "exp": int(time.time()) + (10 * 60)  # 10 minute expiration
     }
-    token = jwt.encode(payload, METABASE_SECRET_KEY, algorithm="HS256")
+    token = jwt.encode(payload, metabase_secret_key, algorithm="HS256")
 
     context = {
-        'metabase_site_url': METABASE_SITE_URL,
+        'metabase_site_url': metabase_site_url,
         'metabase_token': token,
         'template': 'importsdatabase/webclient_plugins/imports_database_page.html',
         'username': username,
