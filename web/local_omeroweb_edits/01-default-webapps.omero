@@ -33,7 +33,3 @@ config append -- omero.web.apps '"corsheaders"'
 config append -- omero.web.middleware '{"index": 0.5, "class": "corsheaders.middleware.CorsMiddleware"}'
 config append -- omero.web.middleware '{"index": 10, "class": "corsheaders.middleware.CorsPostCsrfMiddleware"}'
 config set -- omero.web.cors_origin_allow_all True
-
-# OMERO.web configuration extension of imports_database_page
-config append -- omero.web.apps '"imports_database_page"'
-config append -- omero.web.ui.top_links '["Imports", "imports_database_page", {"title": "Browse your imports status and history"}]'
