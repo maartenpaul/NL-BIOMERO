@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 @login_required()
 @render_response()
 def imports_database_page(request, conn=None, **kwargs):
-    metabase_uri_imports_db = os.environ.get('METABASE_URI_IMPORTS_DB')
+    metabase_site_url = os.environ.get('METABASE_SITE_URL')
     metabase_secret_key = os.environ.get('METABASE_SECRET_KEY')
 
     # Get the current user's information
@@ -20,7 +20,7 @@ def imports_database_page(request, conn=None, **kwargs):
     user_id = current_user.getId()
 
     payload = {
-        "resource": {"dashboard": 2},
+        "resource": {"dashboard": 6},
         "params": {
             "user": user_id,
         },
@@ -29,7 +29,7 @@ def imports_database_page(request, conn=None, **kwargs):
     token = jwt.encode(payload, metabase_secret_key, algorithm="HS256")
 
     context = {
-        'metabase_uri_imports_db': metabase_uri_imports_db,
+        'metabase_site_url': metabase_site_url,
         'metabase_token': token,
         'template': 'importsdatabase/webclient_plugins/imports_database_page.html',
         'username': username,
