@@ -4,14 +4,15 @@ from omeroweb.webclient.decorators import login_required, render_response
 import logging
 import jwt
 import time
+import os
 
 logger = logging.getLogger(__name__)
 
 @login_required()
 @render_response()
 def imports_database_page(request, conn=None, **kwargs):
-    metabase_site_url = "https://omero-acc.amc.nl/dashboard"
-    metabase_secret_key = "1f8e2c8ae6450b1035fe5ac9219a8f34702ab3cb01b1c3c767cfb55922c1d881"
+    metabase_site_url = os.environ.get('METABASE_SITE_URL')
+    metabase_secret_key = os.environ.get('METABASE_SECRET_KEY')
 
     # Get the current user's information
     current_user = conn.getUser()
