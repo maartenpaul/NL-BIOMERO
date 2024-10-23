@@ -29,7 +29,8 @@ def read(fname):
 
 setup(
     name="omero-imports-database-page",
-    version="0.1.0",  # Set your local version number
+    use_scm_version=True,
+    setup_requires=['setuptools_scm'],
     packages=find_packages(exclude=['ez_setup']),
     description="A Python plugin for OMERO.web to display imports database page",
     long_description=read('README.rst'),
@@ -44,10 +45,11 @@ setup(
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
     ],
-    author='Your Name',
-    author_email='your.email@example.com',
+    author='Cellular Imaging Amsterdam UMC',
+    author_email='rrosas@amsterdamumc.nl',
     license='AGPL-3.0',
-    url="",  # You can leave this blank for a local project
+    url="https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-imports-database-page",
+    download_url='https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-imports-database-page/archive/refs/heads/main.zip',
     keywords=['OMERO.web', 'plugin', 'imports database'],
     install_requires=['omero-web>=5.6.0', 'pyjwt'],
     python_requires='>=3',

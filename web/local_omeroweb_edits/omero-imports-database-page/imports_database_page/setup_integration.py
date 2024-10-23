@@ -15,13 +15,3 @@ def main():
         print(f"Successfully added script-menu-widget configuration: {config_src} -> {config_dst}")
     except Exception as e:
         print(f"Error adding script-menu-widget configuration: {e}")
-
-    # Step 2: Replace the script launch HTML to use the new script menu widget
-    src = os.path.join(os.path.dirname(__file__), 'templates', 'importsdatabase', 'webclient_plugins', 'import_database_page.html')
-    dst = os.path.join(f'/opt/omero/web/venv3/lib/{python_version}/site-packages/omeroweb/webclient/templates/webclient/base/includes/import_database_page.html')
-
-    try:
-        copyfile(src, dst)
-        print(f"Successfully replaced script launch HTML: {src} -> {dst}")
-    except Exception as e:
-        print(f"Error replacing script launch HTML: {e}")
