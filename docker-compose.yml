@@ -132,7 +132,7 @@ services:
       OMEROHOST: omeroserver
       CONFIG_omero_scripts_timeout: 604800000
       ENV: TEST
-      METABASE_SITE_URL: ${METABASE_SITE_URL}
+      METABASE_URI_IMPORTS_DB: ${METABASE_URI_IMPORTS_DB}
       METABASE_SECRET_KEY: ${METABASE_SECRET_KEY}
     # Named network to communicate with other containers
     networks:

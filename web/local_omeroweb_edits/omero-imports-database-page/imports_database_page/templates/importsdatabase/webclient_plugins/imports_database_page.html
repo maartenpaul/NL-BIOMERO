@@ -13,9 +13,9 @@
     <script src="{% static 'webclient/javascript/jquery.infieldlabel-0.1.js' %}" type="text/javascript"></script>
     <script>
         $(document).ready(function(){
-            var metabase_site_url = "{{ metabase_site_url }}";
+            var metabase_uri_imports_db = "{{ metabase_uri_imports_db }}";
             var token = "{{ metabase_token }}";
-            var iframeUrl = metabase_site_url + "/embed/dashboard/" + token + "#bordered=true&titled=true";
+            var iframeUrl = metabase_uri_imports_db + "/embed/dashboard/" + token + "#bordered=true&titled=true";
 
             var iframe = $('<iframe>', {
                 src: iframeUrl,
