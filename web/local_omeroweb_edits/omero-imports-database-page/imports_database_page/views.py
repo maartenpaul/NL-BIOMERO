@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 def imports_database_page(request, conn=None, **kwargs):
     metabase_site_url = os.environ.get('METABASE_SITE_URL')
     metabase_secret_key = os.environ.get('METABASE_SECRET_KEY')
-    metabase_dashboard_id = os.environ.get('METABASE_DASHBOARD_ID')
+    metabase_dashboard_id = os.environ.get('METABASE_IMPORTS_DB_PAGE_DASHBOARD_ID')
 
     # Get the current user's information
     current_user = conn.getUser()
