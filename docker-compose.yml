@@ -134,7 +134,7 @@ services:
       ENV: TEST
       METABASE_SITE_URL: ${METABASE_SITE_URL}
       METABASE_SECRET_KEY: ${METABASE_SECRET_KEY}
-      METABASE_DASHBOARD_ID: ${METABASE_DASHBOARD_ID}
+      METABASE_IMPORTS_DB_PAGE_DASHBOARD_ID: ${METABASE_IMPORTS_DB_PAGE_DASHBOARD_ID}
     # Named network to communicate with other containers
     networks:
       - omero
