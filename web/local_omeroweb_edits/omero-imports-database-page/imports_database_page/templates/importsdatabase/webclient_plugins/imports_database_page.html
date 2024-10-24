@@ -15,7 +15,8 @@
         $(document).ready(function(){
             var METABASE_SITE_URL = "{{ metabase_site_url }}";
             var token = "{{ metabase_token }}";
-            var iframeUrl = METABASE_SITE_URL + "/embed/dashboard/" + token + "#bordered=true&titled=true";
+            var refreshInterval = 20; // Set the refresh interval to 20 seconds
+            var iframeUrl = METABASE_SITE_URL + "/embed/dashboard/" + token + "#bordered=true&titled=true&refresh=" + refreshInterval;
 
             var iframe = $('<iframe>', {
                 src: iframeUrl,
@@ -31,11 +32,36 @@
             iframe.on('load', function() {
                 clearTimeout(loadTimeout);
             });
+
+            // Log admin status to console
+            console.log("User is " + "{% if is_admin %}an admin{% else %}not an admin{% endif %}");
+            console.log("Username: {{ user_name }}");
+            console.log("User ID: {{ user_id }}");
         });
     </script>
 
     <!-- keep-alive ping so that OMERO session doesn't die -->
     {% include "webclient/base/includes/ping.html" %}
+{% endblock %}
+
+{% block content %}
+    <style>
+        .admin-message {
+            text-align: center;
+            color: black;
+            height: 20px;
+            line-height: 20px;
+            font-weight: bold;
+        }
+    </style>
+
+    {{ block.super }}
+
+    {% if is_admin %}
+    <div class="admin-message">
+        <a href="{{ metabase_site_url|add:'/' }}" target="_blank">Click here to access the Metabase interface</a>
+    </div>
+    {% endif %}
 {% endblock %}
 
 {% block center_details %}
@@ -61,15 +87,17 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            padding: 0 20px;
         }
 
         #center_details {
             flex: 1;
             overflow: hidden;
-            width: 100%;
-            margin: 20px;
+            margin-top: 20px;
+            margin-bottom: 0; /* Remove bottom margin */
             border-radius: 10px;
             border-color: black;
+            width: 100%;
         }
 
         #metabase-dashboard {
@@ -84,5 +112,6 @@
             border: none;
         }
     </style>
+
     <div id="metabase-dashboard"></div>
 {% endblock %}

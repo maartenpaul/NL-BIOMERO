@@ -20,12 +20,21 @@ def imports_database_page(request, conn=None, **kwargs):
     username = current_user.getName()
     user_id = current_user.getId()
 
+    # Check if the user is an admin
+    is_admin = conn.isAdmin()
+    
+    # Log admin status
+    if is_admin:
+        logger.info(f"User {username} (ID: {user_id}) is an admin")
+    else:
+        logger.info(f"User {username} (ID: {user_id}) is not an admin")
+
     payload = {
         "resource": {"dashboard": int(metabase_dashboard_id)},
         "params": {
             "user_name": [username],
         },
-        "exp": round(time.time()) + (60 * 10)  # 10 minute expiration
+        "exp": round(time.time()) + (60 * 30)  # 10 minute expiration
     }
     token = jwt.encode(payload, metabase_secret_key, algorithm="HS256")
 
@@ -34,7 +43,8 @@ def imports_database_page(request, conn=None, **kwargs):
         'metabase_token': token,
         'template': 'importsdatabase/webclient_plugins/imports_database_page.html',
         'user_name': username,
-        'user_id': user_id
+        'user_id': user_id,
+        'is_admin': is_admin
     }
     return context
 
