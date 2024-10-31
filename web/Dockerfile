@@ -21,7 +21,7 @@ RUN /opt/omero/web/venv3/bin/pip install \
         omero-webtagging-tagsearch \
         whitenoise \
         omero-script-menu-widget==1.1.1\
-        omero-database-pages==0.1.0
+        omero-database-pages==0.1.1
 
 # Implement the script menu widget, replacing the native functionality of the script button in the header
 RUN /opt/omero/web/venv3/bin/omero-script-menu-widget-setup
