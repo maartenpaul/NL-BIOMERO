@@ -1,15 +1,14 @@
 FROM openmicroscopy/omero-web-standalone:5.27.2
 
 USER root
-# TODO change the notes to reflect the login_page_carrousell changes
-# This section of the code will use the get_images_for_login_page to stage an edited verion of the login.html script
-# The edited version of the login.html script will have the images in the login_page_carrousell directory coded in
-# Restart the container if you change images contained in the login_page_carrousell directory
-# Copy the script and images
+
+### Pretty Login ###
 COPY local_omeroweb_edits/pretty_login/get_images_for_login_page.py /script/
 COPY local_omeroweb_edits/pretty_login/login.html /script/
 COPY local_omeroweb_edits/pretty_login/institution_banner /images/
+### ###
 
+# OMERO applications
 RUN /opt/omero/web/venv3/bin/pip install \
         'django-cors-headers' \
         omero-figure \
@@ -32,7 +31,7 @@ RUN /opt/omero/web/venv3/bin/omero-database-pages-setup
 # Set the working directory
 WORKDIR /opt/omero/web/venv3/lib/python3.9/site-packages/omeroweb
 
-# Run the script to update the login.html file
+# Run the script to update the login.html file from pretty_login
 RUN python3.9 /script/get_images_for_login_page.py /images/ /script/login.html ./webclient/templates/webclient/login.html
 
 # Login logos image and style page
@@ -41,6 +40,8 @@ ADD local_omeroweb_edits/pretty_login/ome.login.css ./webgateway/static/webgatew
 
 # Configuration file
 ADD local_omeroweb_edits/01-default-webapps.omero /opt/omero/web/config
+
+### Better Buttons ###
 
 # Double-Click for better file browsing and improved groupsusersbutton
 ADD local_omeroweb_edits/better_buttons/group_user_dropdown2.html ./webclient/templates/webclient/base/includes/group_user_dropdown2.html
@@ -54,6 +55,7 @@ ADD local_omeroweb_edits/better_buttons/public.html ./webclient/templates/webcli
 ADD local_omeroweb_edits/better_buttons/ome.header.css ./webgateway/static/webgateway/css/ome.header.css
 ADD local_omeroweb_edits/script-text-play.svg ./webgateway/static/webgateway/img/script-text-play.svg
 
+### ###
 
 USER omero-web
 
