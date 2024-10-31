@@ -3,12 +3,30 @@ Welcome to the NL-BIOMERO Web Container, a specialized deployment of OMERO tailo
 
 To get started, ensure you have Docker installed on your system and access to the NL-BIOMERO Docker image. This deployment includes the following customizations, located in the `omeroweb_edits` folder:
 
-- **omero-database-pages**: Adds additional pages to the OMERO web interface for better database interaction and visualization.
-- **better_buttons**: Enhances the user interface by providing more intuitive and accessible buttons for common actions.
-- **pretty_login***: Improves the login page aesthetics for a more welcoming and user-friendly experience.
+- **omero-database-pages** Adds additional pages to the OMERO web interface for better database interaction and visualization.
+- **omero-script-menu-widget** Replacs the script-dropdown functionality with a beautiful and stylishly understated widget.
+- **better_buttons** Enhances the user interface by providing more intuitive and accessible buttons for common actions.
+- **pretty_login** Improves the login page aesthetics for a more welcoming and user-friendly experience.
 
-## OMERO Database Pages
+## Database Pages
 OMERO Database Pages introduces additional pages accessible via buttons available in the middle_header to the OMERO web interface. The pages are dedicated to embedding iframe views of metabase dashboards. The Imports and Workflow pages showcase the history and status of imports and workflows run by each user respectively. Administrators have access to the metabase interface, whereas non-admin users are restricted to their own imports and workflows. IMPORTANT: This add-on relies on the metabase container and requires configuring the metabase server. See the [metabase documentation](../metabase/README.md) for more details.
+
+## Script Menu Widget
+The legacy script browsing is limited and not user-friendly. Without already being familiart with all the available scripts, it is hard to discover new functionality. Even for experienced users, the need to click through a couple of tabs to reach scripts was a nuisance.  
+
+Empowering new user to discover scripts that best suit them is a priority of Cellular Imaging. On the other hand, the wish of experienced users is the ability to quickly reach their favorite scripts. Both, browsability and searchability of scripts were desiered functionalities that we set out to provide via this script menu widget. 
+
+the script requiered opening each one individually to read the (sometimes un-informative) description. Therefore we set to replace the legacy dropdown with a widget that is more user friendly and enables farster browsing of all avilable scripts.
+
+
+- Legacy dropdown menu
+
+    ![legacy_script_dropdown](/web/Documentation/Images/legacy_script_dropdown.PNG)
+
+- Script menu widget is small format, whcih is default upon clicking on the 'Script Menu' button. And next to it the large format.
+
+    ![script_menu_widget_small](/web/Documentation/Images/script_menu_widget_small.PNG)
+    ![script_menu_widget_small](/web/Documentation/Images/script_menu_widget_large2.PNG)
 
 
 ## Better Buttons
@@ -23,7 +41,8 @@ Enhances the OMERO web interface by providing more intuitive and accessible butt
 - Renames the default titles of buttons (defined in .omero config file)
 - From the middle_header removes unnecessary buttons like 'History' as its functionality is replaced by Database Pages. 
 - From the middle_header replaced 'Any Value' title with more intuitive 'Annotation Search' title.
-- Added functionality that constricts the top corner OMERO title and icon to leave more room for middle_header buttons
+- Reformatitng the middle_header 'Scripts' and 'Activites' buttons. The legacy icons for these buttons were innapropiate; for some reason, the settings and recycling icons were used. Now, a more appropiate icon and styling has been applied to make it easier for users to find and recognize the buttons.
+- Added functionality that constricts the top corner OMERO title and icon to leave more room for middle_header buttons (not shown).
     ![middle_header before](/web/Documentation/Images/middle_header_before.PNG)
     ![middle_header after](/web/Documentation/Images/middle_header_after.PNG)
 - From the left_panel_toolbar: Removes Shares tab (discontinued functionality), and Create Share button from left_panel_toolbar.
