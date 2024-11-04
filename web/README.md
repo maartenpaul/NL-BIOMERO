@@ -12,18 +12,21 @@ To get started, ensure you have Docker installed on your system and access to th
 OMERO Database Pages introduces additional pages accessible via buttons available in the middle_header to the OMERO web interface. The pages are dedicated to embedding iframe views of metabase dashboards. The Imports and Workflow pages showcase the history and status of imports and workflows run by each user respectively. Administrators have access to the metabase interface, whereas non-admin users are restricted to their own imports and workflows. IMPORTANT: This add-on relies on the metabase container and requires configuring the metabase server. See the [metabase documentation](../metabase/README.md) for more details.
 
 ## Script Menu Widget
-The legacy script browsing is limited and not user-friendly. Without already being familiart with all the available scripts, it is hard to discover new functionality. Even for experienced users, the need to click through a couple of tabs to reach scripts was a nuisance.  
-
-Empowering new user to discover scripts that best suit them is a priority of Cellular Imaging. On the other hand, the wish of experienced users is the ability to quickly reach their favorite scripts. Both, browsability and searchability of scripts were desiered functionalities that we set out to provide via this script menu widget. 
-
-the script requiered opening each one individually to read the (sometimes un-informative) description. Therefore we set to replace the legacy dropdown with a widget that is more user friendly and enables farster browsing of all avilable scripts.
-
-
-- Legacy dropdown menu
+The legacy script browsing enabled by the script dropdown menu is limited and not user-friendly. Without already being familiart with all the available scripts, it is hard to discover new functionality as the descriptions are only available after opening the script. Even for experienced users, the need to click through a couple of tabs to reach scripts was a nuisance.  
+- Legacy dropdown menu with tabs and subtabs which path a user must follow.
+- No visible script description until the script button is clicked.
+- No search function available for users familiar with the scripts.
 
     ![legacy_script_dropdown](/web/Documentation/Images/legacy_script_dropdown.PNG)
 
+
+Empowering new user to discover scripts that best suit them is a priority of Cellular Imaging. On the other hand, the wish of experienced users is the ability to quickly reach their favorite scripts. Both, browsability and searchability of scripts were desiered functionalities that we set out to provide via this script menu widget. So, the script menu widget displays the descriptions of scripts in a card-grid format the contains the script in an easily browsable format. The card-grid has a two tier folder structure of 'tabs' containing a list of 'directories', which in turn contain the 'script-cards'.
+
 - Script menu widget is small format, whcih is default upon clicking on the 'Script Menu' button. And next to it the large format.
+- Tabls [biomero, omero] available to spearate scripts at a higher level.
+- Directories [analysis scroipts, annotation scripts, etc] separating related scripts.
+- Visible description of the scripts in the large format of the widget.
+- Search field for improved finability.
 
     ![script_menu_widget_small](/web/Documentation/Images/script_menu_widget_small.PNG)
     ![script_menu_widget_small](/web/Documentation/Images/script_menu_widget_large2.PNG)
