@@ -1,19 +1,22 @@
 FROM openmicroscopy/omero-web-standalone:5.27.2
 
 USER root
-# TODO change the notes to reflect the login_page_carrousell changes
-# This section of the code will use the get_images_for_login_page to stage an edited verion of the login.html script
-# The edited version of the login.html script will have the images in the login_page_carrousell directory coded in
-# Restart the container if you change images contained in the login_page_carrousell directory
-# Copy the script and images
+
+### Pretty Login ###
 COPY local_omeroweb_edits/pretty_login/get_images_for_login_page.py /script/
 COPY local_omeroweb_edits/pretty_login/login.html /script/
 COPY local_omeroweb_edits/pretty_login/institution_banner /images/
+### ###
 
 
-# local omero-database repo - Development
+### Section for developing with local repos ###
+# git clone the desiered repo(s) in web/local_omeroweb_edits
+# Uncomment the equivalent paths below (both ADD and RUN commands):
 # ADD local_omeroweb_edits/omero-database-pages/ /opt/omero/web/omero-database-pages/
+ADD local_omeroweb_edits/omero-script-menu-widget /opt/omero/web/omero-script-menu-widget/
+### ###
 
+# OMERO applications
 RUN /opt/omero/web/venv3/bin/pip install \
         'django-cors-headers' \
         omero-figure \
@@ -24,20 +27,21 @@ RUN /opt/omero/web/venv3/bin/pip install \
         omero-webtagging-autotag \
         omero-webtagging-tagsearch \
         whitenoise \
-        omero-script-menu-widget==1.1.1
+        # omero-database-pages==0.1.1
+        #omero-script-menu-widget==1.1.2
+
+### Comment out for development ###
+RUN /opt/omero/web/venv3/bin/pip install /opt/omero/web/omero-script-menu-widget/
+# RUN /opt/omero/web/venv3/bin/pip install -e /opt/omero/web/omero-database-pages/
+# RUN /opt/omero/web/venv3/bin/omero-database-pages-setup
+### ###
 
 # Implement the script menu widget, replacing the native functionality of the script button in the header
 RUN /opt/omero/web/venv3/bin/omero-script-menu-widget-setup
 
-# Comment out the line that installs omero-database-pages from pip
-# RUN /opt/omero/web/venv3/bin/pip install /opt/omero/web/omero-database-pages/
-
-# Add a line to copy your local omero-database-pages to the container
-COPY /local_omeroweb_edits/omero-database-pages /opt/omero/web/omero-database-pages/
-
-# Install the local version of omero-database-pages
-RUN /opt/omero/web/venv3/bin/pip install -e /opt/omero/web/omero-database-pages/
+# Implement the database pages: imports and workflows to allow browsing of database tables
 RUN /opt/omero/web/venv3/bin/omero-database-pages-setup
+
 # Set the working directory
 WORKDIR /opt/omero/web/venv3/lib/python3.9/site-packages/omeroweb
 

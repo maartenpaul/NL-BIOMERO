@@ -25,7 +25,8 @@ Empowering new user to discover scripts that best suit them is a priority of Cel
 - Tabls [biomero, omero] available to spearate scripts at a higher level.
 - Directories [analysis scroipts, annotation scripts, etc] separating related scripts.
 - Visible description of the scripts in the large format of the widget.
-- Search field for improved finability.
+- Search field for improved finability. If autocomplete is enabled in your browser, presing enter and reloading the page will record the search.
+- Double clicking on the gray header of the scripts menu widget will toggle between two common widget position/sizes. Give it a try!
 
     ![script_menu_widget_small](/web/Documentation/Images/script_menu_widget_small.PNG)
     ![script_menu_widget_small](/web/Documentation/Images/script_menu_widget_large2.PNG)
@@ -47,6 +48,7 @@ Enhances the OMERO web interface by providing more intuitive and accessible butt
 - Added functionality that constricts the top corner OMERO title and icon to leave more room for middle_header buttons (not shown).
     ![middle_header before](/web/Documentation/Images/middle_header_before.PNG)
     ![middle_header after](/web/Documentation/Images/middle_header_after.PNG)
+
 - From the left_panel_toolbar: Removes Shares tab (discontinued functionality), and Create Share button from left_panel_toolbar.
 - Improved group_user_selection by adding 'Group Select' button title for clarity, as the original button is not recognizable as a button by new users.
 - Added functionality that enable double-clicking on a group name in the dropdown_menu to go directly to 'All_Members' of said group.
@@ -63,25 +65,35 @@ Focuses on improving the aesthetics of the login page, creating a more welcoming
 **Imporvement list with before and afters**
 - Removed the server choice which is not useful for common users and redundant for admins
 - Planced the 'OMERO.web' banner neatly inside the brighter window
-- Added space for documentation which users may need to access even before logging in.
+- Added space for documentation which users may need to access even before logging in (e.g. 'how to login' page).
 
     ![login_page before](/web/Documentation/Images/login_page_before.PNG)
     ![login_page after](/web/Documentation/Images/login_page_after.PNG)
 
 
 ## Troubleshooting
+#TODO: Add some troubleshooting based on problems other institutes may run into
+
+
 
 ## Contributing
-
 We welcome contributions to improve NL-BIOMERO. Please fork the repository and submit a pull request with your changes.
+A Docker_Development file has been added. The file requires the developer to clone a repository for testing (in web/local_omeroweb_edits) and editing the Docker_Developemnt file with the approapiate paths to both ADD and RUN commands.
+
+#TODO: Add here more useful information on the development efforts in the netherlands.
+
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+TODO: Add correct licences compliant to both OME and AUMC
+
 
 ## Contact
 
 For questions or support, please contact the Cellular Imaging lab at Amsterdam University Medical Center.
+
+TODO: Add functional contact information here
+
 
 ---
 
