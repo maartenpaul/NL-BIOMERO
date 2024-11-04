@@ -1,12 +1,11 @@
 # NL-BIOMERO Web Container
 Welcome to the NL-BIOMERO Web Container, a specialized deployment of OMERO tailored for the [Cellular Imaging lab at Amsterdam University Medical Center](https://github.com/Cellular-Imaging-Amsterdam-UMC). This deployment includes several customizations to enhance the user experience and functionality of the OMERO web interface. 
 
-To get started, ensure you have Docker installed on your system and access to the NL-BIOMERO Docker image. This deployment includes the following customizations, located in the `omeroweb_edits` folder:
-
-- **omero-database-pages** Adds additional pages to the OMERO web interface for better database interaction and visualization.
-- **omero-script-menu-widget** Replacs the script-dropdown functionality with a beautiful and stylishly understated widget.
-- **better_buttons** Enhances the user interface by providing more intuitive and accessible buttons for common actions.
-- **pretty_login** Improves the login page aesthetics for a more welcoming and user-friendly experience.
+This deployment includes the following customizations, located in the `omeroweb_edits` folder:
+<br>**omero-database-pages** - Adds additional pages to the OMERO web interface for better database interaction and visualization.
+<br>**omero-script-menu-widget** - Replacs the script-dropdown functionality with a beautiful and stylishly understated widget.
+<br>**better_buttons** - Enhances the user interface by providing more intuitive and accessible buttons for common actions.
+<br>**pretty_login** - Improves the login page aesthetics for a more welcoming and user-friendly experience.
 
 ## Database Pages
 OMERO Database Pages introduces additional pages accessible via buttons available in the middle_header to the OMERO web interface. The pages are dedicated to embedding iframe views of metabase dashboards. The Imports and Workflow pages showcase the history and status of imports and workflows run by each user respectively. Administrators have access to the metabase interface, whereas non-admin users are restricted to their own imports and workflows. IMPORTANT: This add-on relies on the metabase container and requires configuring the metabase server. See the [metabase documentation](../metabase/README.md) for more details.
@@ -51,6 +50,7 @@ Enhances the OMERO web interface by providing more intuitive and accessible butt
 - From the left_panel_toolbar: Removes Shares tab (discontinued functionality), and Create Share button from left_panel_toolbar.
 - Improved group_user_selection by adding 'Group Select' button title for clarity, as the original button is not recognizable as a button by new users.
 - Added functionality that enable double-clicking on a group name in the dropdown_menu to go directly to 'All_Members' of said group.
+
     ![group_user_selection before](/web/Documentation/Images/left_pange_toolbar_before.PNG)
     ![group_user_selection after](/web/Documentation/Images/left_pange_toolbar_after.PNG)
 
