@@ -1,7 +1,7 @@
 # NL-BIOMERO Web Container
 Welcome to the NL-BIOMERO Web Container, a specialized deployment of OMERO tailored for the [Cellular Imaging lab at Amsterdam University Medical Center](https://github.com/Cellular-Imaging-Amsterdam-UMC). This deployment includes several customizations to enhance the user experience and functionality of the OMERO web interface. 
 
-This deployment includes the following customizations, located in the `omeroweb_edits` folder:
+This deployment includes the following customizations, located in the [local_omeroweb_edits](web/local_omeroweb_edits) folder:
 <br>**omero-database-pages** - Adds additional pages to the OMERO web interface for better database interaction and visualization.
 <br>**omero-script-menu-widget** - Replacs the script-dropdown functionality with a beautiful and stylishly understated widget.
 <br>**better_buttons** - Enhances the user interface by providing more intuitive and accessible buttons for common actions.
