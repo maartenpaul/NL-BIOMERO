@@ -3,7 +3,7 @@ Welcome to the NL-BIOMERO Web Container, a specialized deployment of OMERO tailo
 
 This deployment includes the following customizations, located in the [local_omeroweb_edits](web/local_omeroweb_edits) folder:
 <br>**omero-database-pages** - Adds additional pages to the OMERO web interface for better database interaction and visualization.
-<br>**omero-script-menu-widget** - Replacs the script-dropdown functionality with a beautiful and stylishly understated widget.
+<br>**omero-script-menu-widget** - Replaces the script-dropdown functionality with a beautiful and stylishly understated widget.
 <br>**better_buttons** - Enhances the user interface by providing more intuitive and accessible buttons for common actions.
 <br>**pretty_login** - Improves the login page aesthetics for a more welcoming and user-friendly experience.
 
