@@ -74,6 +74,7 @@ services:
     # Define named volume and map a folder from the host machine
     volumes:
       - "omero:/OMERO"
+      - "./web/L-Drive:/L-Drive"
 
   # Name of our worker node, can be anything 
   omeroworker-1:
@@ -145,6 +146,9 @@ services:
     # volumes: 
       # In case of further development, add volumes for local_omeroweb_edits here
       # Once volumes are added, only omeroweb container reload necessary, not the whole docker-compose.
+    volumes:
+      - "./web/L-Drive:/L-Drive:rw"
+      - "./web/local_omeroweb_edits/omero-database-pages:/opt/omero/web/omero-database-pages"
 
   # New Metabase service
   metabase:
@@ -177,3 +181,9 @@ volumes:
   database:
   database-biomero:
   omero:
+  l-drive:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/web/L-Drive
