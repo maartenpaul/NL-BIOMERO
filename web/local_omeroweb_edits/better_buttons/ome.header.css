@@ -92,7 +92,7 @@
 		position:relative;
  	}
 
-	@media (max-width: 1050px) {
+	@media (max-width: 1200px) {
 		#middle_header_logo {
 			display: inline-block; /* Allows the element to have width and height */
 			width: 20px; /* Set the width to act as a spacer */
@@ -231,7 +231,6 @@
 			padding-top: 0.5em;
 			padding-bottom: 0.5em;
 			padding-right: 0.5em;
-			filter: drop-shadow(0 1px 0px rgba(0,0,0,.4));
 		}
 
 
@@ -247,6 +246,7 @@
 			font-size: 1.2em; /* Font size from #middle_header_left a, #show_user_dropdown, #public_login_button */
 			height: calc(100% - 1em); /* Adjust for padding */
 			border: none; /* Ensure no border is applied */
+			border-radius: 3px 0 0 3px; /* Rounded left-side corners */
 		}
 
 		#launch_activities::before, #dataUploadButton::before {
@@ -262,6 +262,7 @@
 		    padding: 0.5em; /* Add padding */
 		    height: calc(100% - 1em); /* Adjust for padding */
 		    border: none; /* Ensure no border is applied */
+			border-radius: 0 3px 3px 0; /* Rounded left-side corners */
 		}
 
 		#scriptButton:hover::before, #launch_activities:hover::before, #dataUploadButton:hover::before {
@@ -876,15 +877,20 @@ li.menu_back a {
 	/* Search */
 		
 		
+	/* Default search styling */
 	#middle_header #search {
-		float:left;
-		margin-top: 6px;
-		margin-right: 8px;
-		position:relative;
+	    float: left;
+	    margin-top: 6px;
+	    margin-right: 8px;
+	    position: relative;
 	}
-		
 
-
+	/* Media query to hide search field when screen width is 1050px or smaller */
+	@media (max-width: 1000px) {
+	    #middle_header #search {
+	        display: none;
+	    }
+	}
 
 
 
@@ -1099,7 +1105,7 @@ li.menu_back a {
 	left: 0;
 	bottom: 0;
 	width: 1px;
-	background-color: hsl(210,10%,85%);
+	/* background-color: hsl(210,10%,85%); */
 	z-index: 1;
 }
 
@@ -1109,7 +1115,7 @@ li.menu_back a {
 	right: 0;
 	bottom: 0;
 	width: 1px;
-	background-color: hsl(210,10%,85%);
+	/* background-color: hsl(210,10%,85%); */
 	z-index: 1;
 }
 
