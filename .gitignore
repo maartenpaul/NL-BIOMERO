@@ -1,5 +1,6 @@
 biomeroworker/slurm-config.ini_*
 DevNotes.md
+metabase
 metabase/metabase.db/metabase.db.trace.db
 .env
 web/local_omeroweb_edits/omero-script-menu-widget/
