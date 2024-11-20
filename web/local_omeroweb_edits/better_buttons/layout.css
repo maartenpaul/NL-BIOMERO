@@ -185,7 +185,8 @@
 	    border-right:solid 1px hsl(210,10%,40%);
 	    position:relative;
 	    height:31px;
-		min-width: 340px;
+        box-sizing: border-box; 
+        width: 350px;
 	}
 	
 	
@@ -882,6 +883,7 @@
         
         
         
+        
         /* Attachments */
         
         
@@ -1414,7 +1416,6 @@
 				background-color: rgba(255,255,255,.05);
                 
             }
-			
 			
 			
 			
