@@ -20,7 +20,7 @@ COPY local_omeroweb_edits/pretty_login/institution_banner /images/
 ### Section for developing with local repos ###
 # git clone the desiered repo(s) in web/local_omeroweb_edits
 # Uncomment the equivalent paths below (both ADD and RUN commands):
-ADD local_omeroweb_edits/omero-boost-pages /opt/omero/web/omero-boost-pages
+# ADD local_omeroweb_edits/omero-boost /opt/omero/web/omero-boost
 ### ###
 
 # OMERO applications
@@ -36,11 +36,11 @@ RUN /opt/omero/web/venv3/bin/pip install \
         whitenoise
 
 ### Comment out for development ###
-RUN /opt/omero/web/venv3/bin/pip install -e /opt/omero/web/omero-boost-pages
+RUN /opt/omero/web/venv3/bin/pip install -e /opt/omero/web/omero-boost
 ### ###
 
 # Implement the omero boost pages,
-RUN /opt/omero/web/venv3/bin/omero-boost-pages-setup
+RUN /opt/omero/web/venv3/bin/omero-boost-setup
 
 
 # Set the working directory
