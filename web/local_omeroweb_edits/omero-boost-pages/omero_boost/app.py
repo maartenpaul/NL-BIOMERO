@@ -28,5 +28,5 @@ from django.apps import AppConfig
 
 
 class OmeroBoostAppConfig(AppConfig):
-    name = "omero-boost"
+    name = "omero_boost"
     label = "boost"

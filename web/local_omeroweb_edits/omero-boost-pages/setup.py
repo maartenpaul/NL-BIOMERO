@@ -13,7 +13,6 @@ setup(
     version="0.1.0",
     packages=find_packages(exclude=['ez_setup']),
     description="A Python plugin for OMERO.web combining database pages, script menu, and web importer functionality",
-    long_description=read('README.rst'),
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Web Environment',
@@ -40,7 +39,7 @@ setup(
     include_package_data=True,
     zip_safe=False,
     package_data={
-        'omero-boost': [
+        'omero_boost': [
             # Static files
             'static/css/*.css',
             'static/img/*.svg',
@@ -53,7 +52,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'omero-boost-pages-setup=boost_pages.setup_integration:main',
+            'omero-boost-pages-setup=omero_boost.setup_integration:main',
         ],
     },
 )

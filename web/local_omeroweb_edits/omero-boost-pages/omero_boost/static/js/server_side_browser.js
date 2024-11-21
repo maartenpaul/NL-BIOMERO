@@ -27,7 +27,7 @@ $(document).ready(function() {
         console.log('Level:', level);
         
         // Use the correct URL pattern from urls.py
-        $.getJSON('/databasepages/api/list_dir/', { path: path })
+        $.getJSON('/omeroboost/api/list_dir/', { path: path })
             .done(function(data) {
                 console.log('API Response:', data);
                 
@@ -95,7 +95,7 @@ $(document).ready(function() {
         handleDirectoryClick(item, path, level);
 
         // Then, select all immediate files in the directory
-        $.getJSON('/databasepages/api/list_dir/', { path: path })
+        $.getJSON('/omeroboost/api/list_dir/', { path: path })
             .done(function(data) {
                 if (data.error) {
                     console.error('Error loading directory:', data.error);
@@ -130,7 +130,7 @@ $(document).ready(function() {
 
     function fetchFileInfo(filePath) {
         // Fetch file information from the server
-        $.getJSON('/databasepages/api/file_info/', { path: filePath })
+        $.getJSON('/omeroboost/api/file_info/', { path: filePath })
             .done(function(data) {
                 if (data.error) {
                     console.error('Error fetching file info:', data.error);
@@ -185,7 +185,7 @@ $(document).ready(function() {
         }
 
         $.ajax({
-            url: '/webclient/databasepages/api/import_selected/',
+            url: '/webclient/omeroboost/api/import_selected/',
             type: 'POST',
             contentType: 'application/json',
             headers: {

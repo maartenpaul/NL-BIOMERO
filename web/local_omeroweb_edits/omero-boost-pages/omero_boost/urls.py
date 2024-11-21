@@ -1,4 +1,6 @@
-from django.urls import path
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+from django.urls import path, re_path
 from . import views
 
 urlpatterns = [
@@ -7,13 +9,13 @@ urlpatterns = [
     path('api/list_dir/', views.list_directory, name='list_directory'),
     path('api/file_info/', views.file_info, name='file_info'),
     path('api/import_selected/', views.import_selected, name='import_selected'),
-    
+
     # Database page URLs
     path('imports/', views.imports_database_page, name='imports_database_page'),
     path('workflows/', views.workflows_database_page, name='workflows_database_page'),
-    
-    # Script menu URLs
-    path('script_menu/', views.script_menu_page, name='script_menu_page'),
-    path('api/list_scripts/', views.list_scripts, name='list_scripts'),
-    path('api/run_script/', views.run_script, name='run_script'),
+
+    # Webclient templates and script menu
+    re_path(r'^webclient_templates/(?P<base_template>[a-z0-9_]+)/',
+            views.webclient_templates, name='webclient_templates'),
+    re_path(r'^get_script_menu/$', views.get_script_menu, name='get_script_menu'),
 ]
