@@ -32,8 +32,7 @@ def read(fname):
 
 setup(
     name="omero-web-importer",
-    use_scm_version=True,
-    setup_requires=['setuptools_scm'],
+    version="0.1.0",
     packages=find_packages(exclude=['ez_setup']),
     description="A Python plugin for OMERO.web",
     long_description=read('README.rst'),
@@ -50,8 +49,7 @@ setup(
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
         'Topic :: Internet :: WWW/HTTP :: WSGI',
         'Topic :: Scientific/Engineering :: Visualization',
-        'Topic :: Software Development :: Libraries :: '
-        'Application Frameworks',
+        'Topic :: Software Development :: Libraries :: Application Frameworks',
         'Topic :: Software Development :: Testing',
         'Topic :: Text Processing :: Markup :: HTML'
     ],

@@ -32,8 +32,7 @@ def read(fname):
 
 setup(
     name="omero-script-menu-widget",
-    use_scm_version=True,
-    setup_requires=['setuptools_scm'],
+    version="0.1.0",
     packages=find_packages(exclude=['ez_setup']),
     description="A Python plugin for OMERO.web",
     long_description=read('README.rst'),

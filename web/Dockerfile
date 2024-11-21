@@ -40,7 +40,7 @@ RUN /opt/omero/web/venv3/bin/pip install \
         # omero-database-pages==0.1.1
 
 ### Comment out for development ###
-RUN /opt/omero/web/venv3/bin/pip install /opt/omero/web/omero-script-menu-widget/
+RUN /opt/omero/web/venv3/bin/pip install -e /opt/omero/web/omero-script-menu-widget/
 RUN /opt/omero/web/venv3/bin/pip install -e /opt/omero/web/omero-database-pages/
 RUN /opt/omero/web/venv3/bin/pip install -e /opt/omero/web/omero-web-importer/
 # RUN /opt/omero/web/venv3/bin/omero-database-pages-setup

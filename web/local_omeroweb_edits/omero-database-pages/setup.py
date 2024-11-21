@@ -31,8 +31,7 @@ def read(fname):
 
 setup(
     name="omero-database-pages",
-    use_scm_version=True,
-    setup_requires=['setuptools_scm'],
+    version="0.1.0",
     packages=find_packages(exclude=['ez_setup']),
     description="A Python plugin for OMERO.web to display database pages",
     long_description=read('README.rst'),
