@@ -149,7 +149,6 @@ services:
     volumes:
       - "./web/L-Drive:/L-Drive:rw"
       - "../omero-boost/:/opt/omero/web/omero-boost"
-      # - "../omero-boost/omero_boost/static:/opt/omero/web/OMERO.web/var/static/omero-boost"
     entrypoint: ["sh", "-c", "tail -f /dev/null"]
 
   # New Metabase service
