@@ -168,19 +168,3 @@ The custom login logo is no longer determined in the configuration file. Rather,
 
 Multiple images (jpg or png) can be added to the same directory, and these will be rotated each 5 seconds to show all the images in order.
 This feature allows display of server announcements and local news.
-
-## Developing plugins
-
-Use docker-compose-dev.yml
-docker exec -ti nl-biomero-omeroweb-1 /bin/bash
-/usr/local/bin/entrypoint.sh
-/opt/omero/web/venv3/bin/omero web restart
-
-docker exec -ti --user root nl-biomero-omeroweb-1 /bin/bash
-/opt/omero/web/venv3/bin/pip install -e /opt/omero/web/omero-boost (once)
-/opt/omero/web/venv3/bin/omero-boost-setup (after changing setup files)
-/usr/local/bin/entrypoint.sh (once)
-/opt/omero/web/venv3/bin/omero web restart
-/opt/omero/web/venv3/bin/omero web stop
-
-sudo apt install inotify-tools
