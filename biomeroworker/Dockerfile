@@ -18,12 +18,12 @@ COPY biomeroworker/10-mount-ssh.sh /startup/10-mount-ssh.sh
 RUN chmod +x /startup/10-mount-ssh.sh
 
 ## Setup OME ZARR & TIFF modules for data export
-RUN python3 -m pip install omero-cli-zarr==0.5.3
+RUN python3 -m pip install omero-cli-zarr==0.5.5
 RUN yum install -y blosc-devel
 
 # Sadly can't do this in Dockerfile:
 # ENV JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:/bin/java::")
-ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-11.0.20.0.8-1.el7_9.x86_64
+ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-11.0.23.0.9-3.el9.x86_64
 RUN export JAVA_HOME
 
 RUN wget https://github.com/glencoesoftware/bioformats2raw/releases/download/v0.7.0/bioformats2raw-0.7.0.zip \
