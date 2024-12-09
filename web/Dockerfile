@@ -1,4 +1,4 @@
-FROM openmicroscopy/omero-web-standalone:5.27.2
+FROM openmicroscopy/omero-web-standalone:5.28.0
 
 USER root
 
@@ -46,7 +46,7 @@ RUN /opt/omero/web/venv3/bin/pip install \
 # Set the working directory
 WORKDIR /opt/omero/web/venv3/lib/python3.9/site-packages/omeroweb
 
-# Run the script to update the login.html file
+# Run the script to update the login.html file from pretty_login
 RUN python3.9 /script/get_images_for_login_page.py /images/ /script/login.html ./webclient/templates/webclient/login.html
 
 # Login logos image and style page
@@ -56,9 +56,12 @@ ADD local_omeroweb_edits/pretty_login/ome.login.css ./webgateway/static/webgatew
 # Configuration file
 ADD local_omeroweb_edits/01-default-webapps.omero /opt/omero/web/config
 
+### Better Buttons ###
+
 # # Improved top menu button clarity
 ADD local_omeroweb_edits/script-text-play.svg ./webgateway/static/webgateway/img/script-text-play.svg
 
+### ###
 
 USER omero-web
 

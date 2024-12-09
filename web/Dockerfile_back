@@ -3,9 +3,12 @@ FROM openmicroscopy/omero-web-standalone:5.27.2
 USER root
 
 ### Pretty Login ###
+
+### Pretty Login ###
 COPY local_omeroweb_edits/pretty_login/get_images_for_login_page.py /script/
 COPY local_omeroweb_edits/pretty_login/login.html /script/
 COPY local_omeroweb_edits/pretty_login/institution_banner /images/
+### ###
 ### ###
 
 # OMERO applications
@@ -26,7 +29,9 @@ RUN /opt/omero/web/venv3/bin/pip install \
 RUN /opt/omero/web/venv3/bin/omero-script-menu-widget-setup
 
 # Implement the database pages: imports and workflows to allow browsing of database tables
+# Implement the database pages: imports and workflows to allow browsing of database tables
 RUN /opt/omero/web/venv3/bin/omero-database-pages-setup
+
 
 # Set the working directory
 WORKDIR /opt/omero/web/venv3/lib/python3.9/site-packages/omeroweb

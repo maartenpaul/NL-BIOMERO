@@ -1,4 +1,4 @@
-FROM openmicroscopy/omero-server:5.6.13
+FROM openmicroscopy/omero-server:5.6.14
 
 ARG BIOMERO_VERSION
 
@@ -18,12 +18,12 @@ COPY biomeroworker/10-mount-ssh.sh /startup/10-mount-ssh.sh
 RUN chmod +x /startup/10-mount-ssh.sh
 
 ## Setup OME ZARR & TIFF modules for data export
-RUN python3 -m pip install omero-cli-zarr==0.5.3
+RUN python3 -m pip install omero-cli-zarr==0.5.5
 RUN yum install -y blosc-devel
 
 # Sadly can't do this in Dockerfile:
 # ENV JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:/bin/java::")
-ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-11.0.20.0.8-1.el7_9.x86_64
+ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-11.0.23.0.9-3.el9.x86_64
 RUN export JAVA_HOME
 
 RUN wget https://github.com/glencoesoftware/bioformats2raw/releases/download/v0.7.0/bioformats2raw-0.7.0.zip \
@@ -35,6 +35,7 @@ ENV PATH="$PATH:/opt/bioformats2raw-0.7.0/bin"
 # For development: 
 # Invalidate cache for development builds
 # ADD "https://api.github.com/repos/NL-BioImaging/biomero/commits?per_page=1" latest_commit
+# ADD "https://api.github.com/repos/NL-BioImaging/biomero/commits?sha=database&per_page=1" latest_commit
 # and install from git intead of pypi 
 RUN yum -y install ack
 # Install psycopg2 system prerequisites for postgres interaction
@@ -43,8 +44,8 @@ RUN yum install -y python3-devel postgresql-devel gcc
 ENV PATH="/usr/pgsql-12/bin:/usr/pgsql-14/bin:${PATH}"
 RUN python3 -m venv $VIRTUAL_ENV \
     && python3 -m pip install --upgrade pip \
-    # && python3 -m pip install biomero==${BIOMERO_VERSION} \
-    && python3 -m pip install 'git+https://github.com/NL-BioImaging/biomero.git@database' \
+    && python3 -m pip install biomero==${BIOMERO_VERSION} \
+    # && python3 -m pip install 'git+https://github.com/NL-BioImaging/biomero.git@database' \
     && python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3 omero-metadata==0.12.0
 
 ## Adjust processor code with AMC Processor
