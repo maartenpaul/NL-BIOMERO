@@ -128,7 +128,10 @@ services:
     # We build this also locally in './web' folder, to add some extensions
     # Environment variables for in the container
     build:
-      context: ./web
+      context: ./
+      dockerfile: ./web/Dockerfile
+      args:
+        BIOMERO_VERSION: ${BIOMERO_VERSION}
     environment:
       OMEROHOST: omeroserver
       CONFIG_omero_scripts_timeout: 604800000

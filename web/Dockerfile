@@ -11,9 +11,9 @@ RUN mkdir -p /L-Drive && \
 VOLUME ["/L-Drive"]
 
 ### Pretty Login ###
-COPY local_omeroweb_edits/pretty_login/get_images_for_login_page.py /script/
-COPY local_omeroweb_edits/pretty_login/login.html /script/
-COPY local_omeroweb_edits/pretty_login/institution_banner /images/
+COPY web/local_omeroweb_edits/pretty_login/get_images_for_login_page.py /script/
+COPY web/local_omeroweb_edits/pretty_login/login.html /script/
+COPY web/local_omeroweb_edits/pretty_login/institution_banner /images/
 ### ###
 
 
@@ -33,7 +33,21 @@ RUN /opt/omero/web/venv3/bin/pip install \
         omero-parade \
         omero-webtagging-autotag \
         omero-webtagging-tagsearch \
-        whitenoise
+        whitenoise \
+        omero-script-menu-widget==1.2.0
+
+# Implement the script menu widget, replacing the native functionality of the script button in the header
+RUN /opt/omero/web/venv3/bin/omero-script-menu-widget-setup
+
+# Install biomero
+# RUN /opt/omero/web/venv3/bin/pip install biomero
+# Install psycopg2 system prerequisites for postgres interaction
+RUN yum install -y python3-devel postgresql-devel gcc
+# Update PATH manually based on known locations
+ENV PATH="/usr/pgsql-12/bin:/usr/pgsql-14/bin:${PATH}"
+
+## Setup slurm-config for biomero
+COPY biomeroworker/slurm-config.ini /etc/slurm-config.ini
 
 ### Comment out for development ###
 # RUN /opt/omero/web/venv3/bin/pip install -e /opt/omero/web/omero-boost
@@ -50,16 +64,16 @@ WORKDIR /opt/omero/web/venv3/lib/python3.9/site-packages/omeroweb
 RUN python3.9 /script/get_images_for_login_page.py /images/ /script/login.html ./webclient/templates/webclient/login.html
 
 # Login logos image and style page
-ADD local_omeroweb_edits/pretty_login/login_page_images ./webclient/static/webclient/image/login_page_images/
-ADD local_omeroweb_edits/pretty_login/ome.login.css ./webgateway/static/webgateway/css/ome.login.css
+ADD web/local_omeroweb_edits/pretty_login/login_page_images ./webclient/static/webclient/image/login_page_images/
+ADD web/local_omeroweb_edits/pretty_login/ome.login.css ./webgateway/static/webgateway/css/ome.login.css
 
 # Configuration file
-ADD local_omeroweb_edits/01-default-webapps.omero /opt/omero/web/config
+ADD web/local_omeroweb_edits/01-default-webapps.omero /opt/omero/web/config
 
 ### Better Buttons ###
 
 # # Improved top menu button clarity
-ADD local_omeroweb_edits/script-text-play.svg ./webgateway/static/webgateway/img/script-text-play.svg
+ADD web/local_omeroweb_edits/script-text-play.svg ./webgateway/static/webgateway/img/script-text-play.svg
 
 ### ###
 
