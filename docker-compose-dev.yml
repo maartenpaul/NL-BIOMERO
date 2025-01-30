@@ -121,6 +121,7 @@ services:
     volumes:
       - "omero:/OMERO"
       - "~/.ssh:/tmp/.ssh:ro"
+      - "./web/slurm-config.ini:/opt/omero/server/slurm-config.ini:rw"
 
   # Service for the omero.web UI
   omeroweb:
@@ -150,6 +151,7 @@ services:
     # In case of further development, add volumes for local_omeroweb_edits here
     # Once volumes are added, only omeroweb container reload necessary, not the whole docker-compose.
     volumes:
+      - "./web/slurm-config.ini:/opt/omero/web/OMERO.web/var/slurm-config.ini:rw"
       - "./web/L-Drive:/L-Drive:rw"
       - "../omero-boost/:/opt/omero/web/omero-boost"
     entrypoint: ["sh", "-c", "tail -f /dev/null"]
