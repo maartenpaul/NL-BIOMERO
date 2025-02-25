@@ -74,7 +74,7 @@ services:
     # Define named volume and map a folder from the host machine
     volumes:
       - "omero:/OMERO"
-      - "./web/L-Drive:/L-Drive"
+      - "./web/L-Drive:/data"
 
   # Name of our worker node, can be anything
   omeroworker-1:
@@ -92,6 +92,7 @@ services:
     # Named volume to share data access and persist data
     volumes:
       - "omero:/OMERO"
+      - "./web/L-Drive:/data"
 
   # Define our processor worker
   biomeroworker:
@@ -122,6 +123,7 @@ services:
       - "omero:/OMERO"
       - "~/.ssh:/tmp/.ssh:ro"
       - "./web/slurm-config.ini:/opt/omero/server/slurm-config.ini:rw"
+      - "./web/L-Drive:/data"
 
   # Service for the omero.web UI
   omeroweb:
@@ -141,6 +143,8 @@ services:
       METABASE_SECRET_KEY: ${METABASE_SECRET_KEY}
       METABASE_IMPORTS_DB_PAGE_DASHBOARD_ID: ${METABASE_IMPORTS_DB_PAGE_DASHBOARD_ID}
       METABASE_WORKFLOWS_DB_PAGE_DASHBOARD_ID: ${METABASE_WORKFLOWS_DB_PAGE_DASHBOARD_ID}
+      INGEST_TRACKING_DB_URL: postgresql+psycopg2://biomero:biomero@database-biomero:5432/biomero
+      IMPORT_MOUNT_PATH: /data
     # Named network to communicate with other containers
     networks:
       - omero
@@ -152,7 +156,7 @@ services:
     # Once volumes are added, only omeroweb container reload necessary, not the whole docker-compose.
     volumes:
       - "./web/slurm-config.ini:/opt/omero/web/OMERO.web/var/slurm-config.ini:rw"
-      - "./web/L-Drive:/L-Drive:rw"
+      - "./web/L-Drive:/data:rw"
       - "../omero-boost/:/opt/omero/web/omero-boost"
     entrypoint: ["sh", "-c", "tail -f /dev/null"]
 
@@ -177,6 +181,32 @@ services:
       - "3000:3000" # Expose Metabase on port 3000
     volumes:
       - "./metabase:/metabase-data" # Mount existing H2 db
+
+  omeroadi:
+    build:
+      context: ./omeroadi  # Adjust if needed
+      dockerfile: ./Dockerfile  # Path to the Dockerfile for your local build
+    privileged: true
+    devices:
+      - "/dev/fuse:/dev/fuse"
+    security_opt:
+      - "label=disable"
+    environment:
+      OMERO_HOST: omeroserver
+      OMERO_USER: root
+      OMERO_PASSWORD: omero
+      OMERO_PORT: 4064
+      INGEST_TRACKING_DB_URL: postgresql+psycopg2://biomero:biomero@database-biomero:5432/biomero
+    networks:
+      - omero
+    volumes:
+      - "omero:/OMERO"
+      - "./web/L-Drive:/data"
+      - "./omeroadi/logs:/auto-importer/logs"
+      - "./omeroadi/config:/auto-importer/config"
+      - "./omeroadi/omero_adi:/auto-importer/omero_adi"
+    user: "1000:1000"
+
 
 # Define the network(s) to communicate between containers
 networks:

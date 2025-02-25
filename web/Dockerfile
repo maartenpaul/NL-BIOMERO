@@ -49,6 +49,13 @@ ENV PATH="/usr/pgsql-12/bin:/usr/pgsql-14/bin:${PATH}"
 ## Setup slurm-config for biomero
 COPY biomeroworker/slurm-config.ini /etc/slurm-config.ini
 
+
+### Install OMERO ADI library for import order creation ###
+# Clone the specific branch of the repository
+ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/OMERO-Automated-Data-Import/commits?sha=mergebranch&per_page=1" /latest_commit
+RUN git clone -b mergebranch https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO-Automated-Data-Import.git /auto-importer
+RUN /opt/omero/web/venv3/bin/python3.9 -m pip install /auto-importer
+
 ### Comment out for development ###
 # RUN /opt/omero/web/venv3/bin/pip install -e /opt/omero/web/omero-boost
 ### ###
