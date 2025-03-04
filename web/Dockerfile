@@ -16,13 +16,6 @@ COPY web/local_omeroweb_edits/pretty_login/login.html /script/
 COPY web/local_omeroweb_edits/pretty_login/institution_banner /images/
 ### ###
 
-
-### Section for developing with local repos ###
-# git clone the desiered repo(s) in web/local_omeroweb_edits
-# Uncomment the equivalent paths below (both ADD and RUN commands):
-# ADD ../../omero-boost /opt/omero/web/omero-boost
-### ###
-
 # OMERO applications
 RUN /opt/omero/web/venv3/bin/pip install \
         'django-cors-headers' \
@@ -56,13 +49,16 @@ ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/OMERO-Automated
 RUN git clone -b mergebranch https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO-Automated-Data-Import.git /auto-importer
 RUN /opt/omero/web/venv3/bin/python3.9 -m pip install /auto-importer
 
-### Comment out for development ###
-# RUN /opt/omero/web/venv3/bin/pip install -e /opt/omero/web/omero-boost
+### Install OMERO BOOST/CANVAS ###
+ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/omero-boost/commits" /latest_commit_boost
+RUN git clone -b main https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-boost.git /opt/omero/web/omero-boost
+RUN "chmod a+w /opt/omero/web/OMERO.web/var/static" || true
+RUN /opt/omero/web/venv3/bin/python3.9 -m pip install -e /opt/omero/web/omero-boost
+RUN "/opt/omero/web/venv3/bin/omero-boost-setup"
+# normal entrypoint
+# RUN "/opt/omero/web/venv3/bin/omero web stop"
+# RUN "/opt/omero/web/omero-boost/startup.sh" 
 ### ###
-
-# Implement the omero boost pages,
-# RUN /opt/omero/web/venv3/bin/omero-boost-setup
-
 
 # Set the working directory
 WORKDIR /opt/omero/web/venv3/lib/python3.9/site-packages/omeroweb
