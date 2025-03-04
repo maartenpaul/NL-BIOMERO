@@ -43,8 +43,11 @@ jobs:
         with:
           context: "{{defaultContext}}"
           push: true
+          file: ./web/Dockerfile
           tags: ${{ steps.meta-web.outputs.tags }}
           labels: ${{ steps.meta-web.outputs.labels }}
+          build-args: |
+            BIOMERO_VERSION=${{ env.BIOMERO_VERSION }}
       -
         name: Docker meta SERVER
         id: meta-server
