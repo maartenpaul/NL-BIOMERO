@@ -41,7 +41,7 @@ jobs:
         name: Build and push WEB
         uses: docker/build-push-action@v5
         with:
-          context: "{{defaultContext}}:web"
+          context: "{{defaultContext}}"
           push: true
           tags: ${{ steps.meta-web.outputs.tags }}
           labels: ${{ steps.meta-web.outputs.labels }}
