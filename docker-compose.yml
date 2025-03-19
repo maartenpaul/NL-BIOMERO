@@ -183,8 +183,7 @@ services:
 
   omeroadi:
     build:
-      context: ./omeroadi  # Adjust if needed
-      dockerfile: ./Dockerfile  # Path to the Dockerfile for your local build
+      context: https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO-Automated-Data-Import.git#main
     privileged: true
     devices:
       - "/dev/fuse:/dev/fuse"
@@ -201,9 +200,7 @@ services:
     volumes:
       - "omero:/OMERO"
       - "./web/L-Drive:/data"
-      - "./omeroadi/logs:/auto-importer/logs"
-      - "./omeroadi/config:/auto-importer/config"
-      - "./omeroadi/omero_adi:/auto-importer/omero_adi"
+      - "./config/omeroadi/groups_list.json:/auto-importer/config/groups_list.json"
     user: "1000:1000"
 
 

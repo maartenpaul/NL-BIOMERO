@@ -11,13 +11,14 @@ USER omero-server
 # Configuration file
 ADD server/01-ldap-config.omero /opt/omero/server/config/
 
-# Invalidate cache for development builds
-# ADD "https://api.github.com/repos/NL-BioImaging/biomero-scripts/commits?per_page=1" latest_comm
-# ADD "https://api.github.com/repos/NL-BioImaging/biomero-scripts/commits?sha=database&per_page=1" latest_comm
-# Now just pulling released / tagged versions
+# Development versions:
+# ADD "https://api.github.com/repos/NL-BioImaging/biomero-scripts/commits/master" latest_comm
+# RUN cd /opt/omero/server/OMERO.server/lib/scripts/ && \
+#     git clone --depth 1 --branch master --single-branch https://github.com/NL-BioImaging/biomero-scripts.git biomero
+
+# Clone specific release version
 RUN cd /opt/omero/server/OMERO.server/lib/scripts/ && \
     git clone --depth 1 --branch ${BIOMERO_VERSION} --single-branch https://github.com/NL-BioImaging/biomero-scripts.git biomero
-    # git clone --depth 1 https://github.com/NL-BioImaging/biomero-scripts.git biomero
 
 # Install the Figure-to-PDF script for OMERO.figure plugin
 RUN curl -o /opt/omero/server/OMERO.server/lib/scripts/omero/figure_scripts/Figure_To_Pdf.py \

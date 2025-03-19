@@ -29,24 +29,26 @@ RUN /opt/omero/web/venv3/bin/pip install \
         whitenoise
         # omero-script-menu-widget==1.2.0
 
+# Removed: Script menu widget has been replaced by omero-boost plugins and is no longer needed
 # Implement the script menu widget, replacing the native functionality of the script button in the header
 # RUN /opt/omero/web/venv3/bin/omero-script-menu-widget-setup
 
-# Install biomero
+# Install biomero # Removed, BIOMERO is installed as part of omero-boost dependencies
 # RUN /opt/omero/web/venv3/bin/pip install biomero
+
 # Install psycopg2 system prerequisites for postgres interaction
 RUN yum install -y python3-devel postgresql-devel gcc
 # Update PATH manually based on known locations
 ENV PATH="/usr/pgsql-12/bin:/usr/pgsql-14/bin:${PATH}"
 
-## Setup slurm-config for biomero
+## Setup slurm-config for biomero, for the BIOMERO django API in omero-boost
 COPY biomeroworker/slurm-config.ini /etc/slurm-config.ini
 
-
 ### Install OMERO ADI library for import order creation ###
-# Clone the specific branch of the repository
-ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/OMERO-Automated-Data-Import/commits?sha=mergebranch&per_page=1" /latest_commit
-RUN git clone -b mergebranch https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO-Automated-Data-Import.git /auto-importer
+# Check for new commits to invalidate cache when repo changes
+ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/OMERO-Automated-Data-Import/commits?sha=main&per_page=1" /latest_commit
+# Clone from main branch with Git metadata for version detection
+RUN git clone --depth 1 -b main https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO-Automated-Data-Import.git /auto-importer
 RUN /opt/omero/web/venv3/bin/python3.9 -m pip install /auto-importer
 
 ### Install OMERO BOOST/CANVAS ###
