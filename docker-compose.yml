@@ -157,7 +157,6 @@ services:
     volumes:
       - "./web/slurm-config.ini:/opt/omero/web/OMERO.web/var/slurm-config.ini:rw"
       - "./web/L-Drive:/data:rw"
-      - "../omero-boost/:/opt/omero/web/omero-boost"
 
   # New Metabase service
   metabase:
