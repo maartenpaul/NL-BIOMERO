@@ -53,7 +53,8 @@ RUN /opt/omero/web/venv3/bin/python3.9 -m pip install /auto-importer
 
 ### Install OMERO BOOST/CANVAS ###
 ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/omero-boost/commits" /latest_commit_boost
-RUN git clone -b v1.0.0-alpha.1 https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-boost.git /opt/omero/web/omero-boost
+RUN git clone -b v1.0.0-alpha.2 https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-boost.git /opt/omero/web/omero-boost
+# RUN git clone -b main https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-boost.git /opt/omero/web/omero-boost
 RUN "chmod a+w /opt/omero/web/OMERO.web/var/static" || true
 RUN /opt/omero/web/venv3/bin/python3.9 -m pip install -e /opt/omero/web/omero-boost
 RUN "/opt/omero/web/venv3/bin/omero-boost-setup"
