@@ -164,7 +164,7 @@ services:
       - "./metabase:/metabase-data"
 
   omeroadi:
-    image: "cellularimagingcf/omeroadi:1.0.0-alpha.1"
+    image: "cellularimagingcf/omeroadi:${OMEROADI_VERSION:-latest}"
     privileged: true
     devices:
       - "/dev/fuse:/dev/fuse"
