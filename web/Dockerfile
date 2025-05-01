@@ -27,17 +27,10 @@ RUN /opt/omero/web/venv3/bin/pip install \
         omero-webtagging-autotag \
         omero-webtagging-tagsearch \
         whitenoise
-        # omero-script-menu-widget==1.2.0
 
-# Removed: Script menu widget has been replaced by omero-boost plugins and is no longer needed
-# Implement the script menu widget, replacing the native functionality of the script button in the header
-# RUN /opt/omero/web/venv3/bin/omero-script-menu-widget-setup
+# Install system dependencies
+RUN yum install -y python3-devel postgresql-devel gcc gettext
 
-# Install biomero # Removed, BIOMERO is installed as part of omero-boost dependencies
-# RUN /opt/omero/web/venv3/bin/pip install biomero
-
-# Install psycopg2 system prerequisites for postgres interaction
-RUN yum install -y python3-devel postgresql-devel gcc
 # Update PATH manually based on known locations
 ENV PATH="/usr/pgsql-12/bin:/usr/pgsql-14/bin:${PATH}"
 
@@ -51,17 +44,40 @@ ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/OMERO-Automated
 RUN git clone --depth 1 -b main https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO-Automated-Data-Import.git /auto-importer
 RUN /opt/omero/web/venv3/bin/python3.9 -m pip install /auto-importer
 
-### Install OMERO BOOST/CANVAS ###
-ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/omero-boost/commits" /latest_commit_boost
-RUN git clone -b v1.0.0-alpha.2 https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-boost.git /opt/omero/web/omero-boost
-# RUN git clone -b main https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-boost.git /opt/omero/web/omero-boost
-RUN "chmod a+w /opt/omero/web/OMERO.web/var/static" || true
-RUN /opt/omero/web/venv3/bin/python3.9 -m pip install -e /opt/omero/web/omero-boost
-RUN "/opt/omero/web/venv3/bin/omero-boost-setup"
-# normal entrypoint
-# RUN "/opt/omero/web/venv3/bin/omero web stop"
-# RUN "/opt/omero/web/omero-boost/startup.sh" 
-### ###
+### Install OMERO BOOST first ###
+ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/omero-boost/commits/main" /latest_commit_boost
+RUN git clone -b main https://github.com/Cellular-Imaging-Amsterdam-UMC/omero-boost.git /opt/omero/web/omero-boost
+
+# Create and set permissions for static directory
+RUN mkdir -p /opt/omero/web/OMERO.web/var/static && \
+    chmod a+w /opt/omero/web/OMERO.web/var/static
+
+# Upgrade pip and install boost
+RUN /opt/omero/web/venv3/bin/python3.9 -m pip install --upgrade pip && \
+    /opt/omero/web/venv3/bin/pip install wheel setuptools && \
+    /opt/omero/web/venv3/bin/pip install -e /opt/omero/web/omero-boost && \
+    /opt/omero/web/venv3/bin/omero-boost-setup
+
+### Install OMERO.forms ###
+# Install Node.js first
+RUN curl -fsSL https://rpm.nodesource.com/setup_20.x | bash - && \
+    yum install -y --nogpgcheck nodejs && \
+    npm install -g npm@latest
+
+# Forms installation - using master branch
+ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/OMERO.forms/commits/master" /latest_commit_forms
+RUN git clone -b master https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.forms.git /opt/omero/web/omero-forms
+
+# Build and install Forms
+WORKDIR /opt/omero/web/omero-forms
+RUN npm install --force && \
+    node_modules/.bin/webpack --mode production && \
+    /opt/omero/web/venv3/bin/python3.9 -m pip install -e .
+
+# Clean up Node.js
+RUN yum remove -y nodejs && \
+    yum clean all && \
+    rm -rf /var/cache/yum
 
 # Set the working directory
 WORKDIR /opt/omero/web/venv3/lib/python3.9/site-packages/omeroweb
@@ -73,8 +89,14 @@ RUN python3.9 /script/get_images_for_login_page.py /images/ /script/login.html .
 ADD web/local_omeroweb_edits/pretty_login/login_page_images ./webclient/static/webclient/image/login_page_images/
 ADD web/local_omeroweb_edits/pretty_login/ome.login.css ./webgateway/static/webgateway/css/ome.login.css
 
-# Configuration file
-ADD web/local_omeroweb_edits/01-default-webapps.omero /opt/omero/web/config
+# Configuration file and startup scripts
+ADD web/local_omeroweb_edits/01-default-webapps.omero /opt/omero/web/config/
+ADD web/44-create_forms_user.py /startup/
+ADD web/45-fix-forms-config.sh /startup/
+RUN chmod +x /startup/45-fix-forms-config.sh && \
+    chmod +x /startup/44-create_forms_user.py && \
+    chown -R omero-web:omero-web /opt/omero/web/config && \
+    chmod 644 /opt/omero/web/config/01-default-webapps.omero
 
 ### Better Buttons ###
 

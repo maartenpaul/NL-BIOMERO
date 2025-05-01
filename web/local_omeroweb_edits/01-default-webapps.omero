@@ -27,6 +27,13 @@ config append -- omero.web.open_with '["omero_fpbioimage", "fpbioimage_index", {
 # Top links
 config set -- omero.web.ui.top_links '[["Data", "webindex", {"title": "Browse Data via Projects, Tags etc"}], ["Annotation Search", {"viewname": "maprindex_anyvalue"}, {"title": "Annotation Search"}], ["Figure", "figure_index", {"title": "Open Figure in new tab", "target": "_blank"}]]'
 
+# OMERO.forms configuration
+config append -- omero.web.apps '"omero_forms"'
+config append -- omero.web.ui.center_plugins '["Forms", "forms/forms_init.js.html", "omero_forms_panel"]'
+config append -- omero.web.ui.top_links '["Forms Designer", "omeroforms_designer", {"title": "Open OMERO.Forms in a new tab", "target": "new"}]'
+config set -- omero.web.forms.priv.user '${FORMS_MASTER_USER}'
+config set -- omero.web.forms.priv.password '${FORMS_MASTER_PASSWORD}'
+
 # enable CORS so e.g. react-webapp can connect to OMERO.web on different origin
 # See https://docs.openmicroscopy.org/latest/omero/sysadmins/unix/install-web.html
 config append -- omero.web.apps '"corsheaders"'
