@@ -64,9 +64,10 @@ RUN curl -fsSL https://rpm.nodesource.com/setup_20.x | bash - && \
     yum install -y --nogpgcheck nodejs && \
     npm install -g npm@latest
 
-# Forms installation - using master branch
-ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/OMERO.forms/commits/master" /latest_commit_forms
-RUN git clone -b master https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.forms.git /opt/omero/web/omero-forms
+# Forms installation - using biomero_forms branch
+ADD "https://api.github.com/repos/Cellular-Imaging-Amsterdam-UMC/OMERO.forms/commits/biomero_forms" /latest_commit_forms
+RUN git clone -b biomero_forms https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.forms.git /opt/omero/web/omero-forms
+
 
 # Build and install Forms
 WORKDIR /opt/omero/web/omero-forms
