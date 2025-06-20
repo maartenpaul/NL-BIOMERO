@@ -129,6 +129,7 @@ services:
     # login__logo supplies a logo on the starting page of web UI
     environment:
       OMEROHOST: omeroserver
+      ROOTPASS: omero
       CONFIG_omero_web_login__logo: "https://cembo.eu/wp-content/uploads/2021/04/Amsterdam-UMC.png"
       CONFIG_omero_scripts_timeout: 604800000
       ENV: TEST
@@ -138,6 +139,8 @@ services:
       METABASE_WORKFLOWS_DB_PAGE_DASHBOARD_ID: ${METABASE_WORKFLOWS_DB_PAGE_DASHBOARD_ID}
       INGEST_TRACKING_DB_URL: postgresql+psycopg2://biomero:biomero@database-biomero:5432/biomero
       IMPORT_MOUNT_PATH: /data
+      FORMS_MASTER_USER: ${FORMS_MASTER_USER}
+      FORMS_MASTER_PASSWORD: ${FORMS_MASTER_PASSWORD}
     # Named network to communicate with other containers
     networks:
       - omero
@@ -164,7 +167,7 @@ services:
       - "./metabase:/metabase-data"
 
   omeroadi:
-    image: "cellularimagingcf/omeroadi:1.0.0-alpha.1"
+    image: "cellularimagingcf/omeroadi:${OMEROADI_VERSION:-latest}"
     privileged: true
     devices:
       - "/dev/fuse:/dev/fuse"
@@ -193,4 +196,3 @@ volumes:
   database:
   database-biomero:
   omero:
-  

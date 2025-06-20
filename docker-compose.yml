@@ -137,6 +137,7 @@ services:
         BIOMERO_VERSION: ${BIOMERO_VERSION}
     environment:
       OMEROHOST: omeroserver
+      ROOTPASS: omero
       CONFIG_omero_scripts_timeout: 604800000
       ENV: TEST
       METABASE_SITE_URL: ${METABASE_SITE_URL}
@@ -145,6 +146,8 @@ services:
       METABASE_WORKFLOWS_DB_PAGE_DASHBOARD_ID: ${METABASE_WORKFLOWS_DB_PAGE_DASHBOARD_ID}
       INGEST_TRACKING_DB_URL: postgresql+psycopg2://biomero:biomero@database-biomero:5432/biomero
       IMPORT_MOUNT_PATH: /data
+      FORMS_MASTER_USER: ${FORMS_MASTER_USER}
+      FORMS_MASTER_PASSWORD: ${FORMS_MASTER_PASSWORD}
     # Named network to communicate with other containers
     networks:
       - omero
