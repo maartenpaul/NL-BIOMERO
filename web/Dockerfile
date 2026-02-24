@@ -30,7 +30,15 @@ RUN /opt/omero/web/venv3/bin/pip install \
         omero-parade \
         omero-webtagging-autotag \
         omero-webtagging-tagsearch \
-        whitenoise
+        whitenoise \
+        omero-annotate-ai[all] \
+        ultralytics
+
+# Pre-download MobileSAM model (can't download at runtime in containers)
+RUN mkdir -p /opt/omero/web/models && \
+    curl -L -o /opt/omero/web/models/mobile_sam.pt \
+    https://github.com/ultralytics/assets/releases/download/v8.4.0/mobile_sam.pt
+
 
 
 # Update PATH manually based on known locations
@@ -82,4 +90,3 @@ ADD web/local_omeroweb_edits/script-text-play.svg ./webgateway/static/webgateway
 ### ###
 
 USER omero-web
-
